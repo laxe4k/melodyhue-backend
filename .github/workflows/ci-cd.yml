@@ -34,7 +34,7 @@ jobs:
             TAGS="$REPO:dev"
           elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             VERSION="${GITHUB_REF#refs/tags/}"
-            TAGS="$REPO:$VERSION"
+            TAGS="$REPO:$VERSION,$REPO:latest"
           else
             echo "Branche non supportée pour le build."
             exit 1
