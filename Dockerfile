@@ -56,8 +56,8 @@ COPY --chown=spotifyapi:spotifyapi main.py .
 COPY --chown=spotifyapi:spotifyapi api_handler.py .
 COPY --chown=spotifyapi:spotifyapi models/ ./models/
 
-# Créer le répertoire de données
-RUN mkdir -p ./data && chown -R spotifyapi:spotifyapi ./data
+# Créer le répertoire de données et attribuer les droits d'utilisateur
+RUN mkdir -p /home/spotifyapi/data && chown -R spotifyapi:spotifyapi /home/spotifyapi/data
 
 # Exposer le port
 EXPOSE 8765
