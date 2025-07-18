@@ -156,7 +156,7 @@ class APIHandler(BaseHTTPRequestHandler):
             params = {
                 'client_id': self.extractor.spotify_client_id,
                 'response_type': 'code',
-                'redirect_uri': 'http://localhost:8765/spotify/callback',
+                'redirect_uri': 'http://192.168.1.9:8765/spotify/callback',
                 'scope': 'user-read-currently-playing user-read-playback-state',
                 'state': 'spotify-color-api'
             }
