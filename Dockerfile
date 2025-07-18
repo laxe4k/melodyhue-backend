@@ -23,14 +23,12 @@ RUN CHROME_VERSION=$(google-chrome --version | awk '{print $3}') \
     && CHROME_MAJOR_VERSION=$(echo $CHROME_VERSION | cut -d. -f1) \
     && echo "Version majeure Chrome: $CHROME_MAJOR_VERSION" \
     && if [ "$CHROME_MAJOR_VERSION" -ge "115" ]; then \
-        # Pour Chrome 115+, utiliser l'API Chrome for Testing
         DRIVER_VERSION=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_$CHROME_MAJOR_VERSION") \
         && echo "Version ChromeDriver compatible: $DRIVER_VERSION" \
         && wget -O /tmp/chromedriver.zip "https://storage.googleapis.com/chrome-for-testing-public/$DRIVER_VERSION/linux64/chromedriver-linux64.zip" \
         && unzip /tmp/chromedriver.zip -d /tmp/ \
         && mv /tmp/chromedriver-linux64/chromedriver /usr/local/bin/; \
     else \
-        # Fallback pour anciennes versions
         DRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_MAJOR_VERSION") \
         && wget -O /tmp/chromedriver.zip "https://chromedriver.storage.googleapis.com/$DRIVER_VERSION/chromedriver_linux64.zip" \
         && unzip /tmp/chromedriver.zip -d /tmp/ \
@@ -57,7 +55,9 @@ RUN pip install --user --no-cache-dir -r requirements.txt
 COPY --chown=spotifyapi:spotifyapi main.py .
 COPY --chown=spotifyapi:spotifyapi api_handler.py .
 COPY --chown=spotifyapi:spotifyapi models/ ./models/
-COPY --chown=spotifyapi:spotifyapi data/ ./data/
+
+# Copier le dossier data/ s’il existe (mais ne pas planter si absent)
+RUN [ -d "data" ] && cp -r data ./data || echo "dossier data/ non présent, on skip."
 
 # Exposer le port
 EXPOSE 8765
