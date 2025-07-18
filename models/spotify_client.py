@@ -19,6 +19,11 @@ class SpotifyClient:
         os.makedirs(self.data_dir, exist_ok=True)
         self.tokens_file = os.path.join(self.data_dir, "spotify_tokens.json")
         
+        # Créer le fichier tokens s'il n'existe pas
+        if not os.path.exists(self.tokens_file):
+            with open(self.tokens_file, 'w', encoding='utf-8') as f:
+                json.dump({}, f)
+        
         # Spotify API credentials
         self.spotify_client_id = None
         self.spotify_client_secret = None

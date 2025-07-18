@@ -57,7 +57,7 @@ COPY --chown=spotifyapi:spotifyapi api_handler.py .
 COPY --chown=spotifyapi:spotifyapi models/ ./models/
 
 # Copier le dossier data/ s’il existe (mais ne pas planter si absent)
-RUN [ -d "data" ] && cp -r data ./data || echo "dossier data/ non présent, on skip."
+RUN [ -d "data" ] && cp -r data ./data || mkdir ./data
 
 # Exposer le port
 EXPOSE 8765
