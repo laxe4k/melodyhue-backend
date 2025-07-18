@@ -1,26 +1,31 @@
 version: '3.8'
 
 services:
-  spotify-color-api:
-    build: .
-    container_name: spotify_color_api
+  spotify-info-color-api:
+    image: ghcr.io/laxe4k/spotify-info-color-api:latest
+    container_name: spotify_info_color_api
     ports:
-      - "8765:8765"
+      - "${SERVER_PORT}:${SERVER_PORT}"
     environment:
       - DISPLAY=:99
       - CHROME_BIN=/usr/bin/google-chrome
-      - SPOTIFY_CLIENT_ID=a1b3f75698524cad9246d46289d461db
-      - SPOTIFY_CLIENT_SECRET=56941a590cad43baaa44e2d171ceb390
+      - SERVER_HOST=${SERVER_HOST}
+      - SERVER_PORT=${SERVER_PORT}
+      - CACHE_DURATION=${CACHE_DURATION}
+      - MONITORING_INTERVAL=${MONITORING_INTERVAL}
+      - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}
+      - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET}
     volumes:
       - ./data:/home/spotifyapi/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8765/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${SERVER_PORT}/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
     networks:
       - spotify-network
+    restart: unless-stopped
 
 networks:
   spotify-network:
