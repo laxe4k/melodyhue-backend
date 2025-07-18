@@ -1,0 +1,54 @@
+name: CI/CD - Docker (Python)
+
+on:
+  push:
+    tags:
+      - "*"
+    branches:
+      - 'dev/*'
+  workflow_dispatch:
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Define Docker image tags
+        id: tag
+        run: |
+          REPO=ghcr.io/${{ github.repository }}
+
+          if [[ "${GITHUB_REF}" == refs/heads/dev/* ]]; then
+            TAGS="$REPO:dev"
+          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+            TAGS="$REPO:$VERSION"
+          else
+            echo "Branche non supportée pour le build."
+            exit 1
+          fi
+
+          echo "tags=$TAGS" >> $GITHUB_OUTPUT
+
+      - name: Build & Push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.tag.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
