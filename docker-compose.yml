@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  spotify-color-api:
+    build: .
+    container_name: spotify_color_api
+    ports:
+      - "8765:8765"
+    environment:
+      - DISPLAY=:99
+      - CHROME_BIN=/usr/bin/google-chrome
+      - SPOTIFY_CLIENT_ID=a1b3f75698524cad9246d46289d461db
+      - SPOTIFY_CLIENT_SECRET=56941a590cad43baaa44e2d171ceb390
+    volumes:
+      - ./data:/home/spotifyapi/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8765/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - spotify-network
+
+networks:
+  spotify-network:
+    driver: bridge
