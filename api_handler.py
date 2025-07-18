@@ -163,9 +163,11 @@ class APIHandler(BaseHTTPRequestHandler):
             oauth_url = f"https://accounts.spotify.com/authorize?{urlencode(params)}"
             response = {"status": "success", "oauth_url": oauth_url}
             self._send_json_response(200, response)
+            print(f"🔗 URL d'authentification Spotify: {oauth_url}")
         else:
             response = {"status": "error", "message": "Client ID non configuré"}
             self._send_json_response(400, response)
+            print("❌ Client ID Spotify non configuré, impossible de générer l'URL d'authentification.")
     
     def _handle_spotify_callback(self):
         """Gérer le callback OAuth Spotify"""
@@ -185,6 +187,7 @@ class APIHandler(BaseHTTPRequestHandler):
                     </body></html>
                     """
                     self._send_html_response(200, html_content)
+                    print("✅ Authentification Spotify réussie, la surveillance des changements de musique est active.")
                 else:
                     html_content = """
                     <html><body>
@@ -193,6 +196,7 @@ class APIHandler(BaseHTTPRequestHandler):
                     </body></html>
                     """
                     self._send_html_response(400, html_content)
+                    print("❌ Erreur d'authentification, veuillez réessayer.")
             else:
                 html_content = """
                 <html><body>
@@ -200,6 +204,7 @@ class APIHandler(BaseHTTPRequestHandler):
                 </body></html>
                 """
                 self._send_html_response(400, html_content)
+                print("❌ Code d'autorisation manquant dans le callback Spotify.")
                 
         except Exception as e:
             html_content = f"""
@@ -209,6 +214,7 @@ class APIHandler(BaseHTTPRequestHandler):
             </body></html>
             """
             self._send_html_response(500, html_content)
+            print(f"❌ Erreur lors du traitement du callback Spotify: {e}")
     
     def _handle_debug_track_endpoint(self):
         """Endpoint de debug pour voir les infos de la piste actuelle"""
