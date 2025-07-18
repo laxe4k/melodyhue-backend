@@ -1,5 +1,5 @@
 # Dépendances Python pour l'API Spotify Color
 selenium==4.15.2
-Pillow==10.0.1
-requests==2.31.0
+Pillow==10.3.0
+requests==2.32.4
 python-dotenv==1.0.0
