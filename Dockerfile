@@ -1,5 +1,5 @@
 # Utiliser une image plus légère avec Chrome
-FROM python:3.11-slim
+FROM python:3-slim
 
 # Installer les dépendances système
 RUN apt-get update && apt-get install -y \
