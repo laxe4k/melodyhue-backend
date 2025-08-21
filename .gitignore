@@ -173,6 +173,7 @@ data/
 *.pid
 
 # Environment variables
+docker-compose.yml
 .env.local
 .env.production
 
