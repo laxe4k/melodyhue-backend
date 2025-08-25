@@ -404,7 +404,7 @@ def index():
           <p class=\"subtitle\">Récupère la piste en cours, extrait une couleur dominante naturelle mais punchy, et expose une API simple pour tes projets d’ambiance.</p>
           <div class=\"cta\">
             <a class=\"btn primary\" href=\"/connect\">Configurer et se connecter</a>
-            <a class=\"btn\" href=\"https://github.com/\" target=\"_blank\" rel=\"noreferrer\">Voir la doc</a>
+            <a class=\"btn\" href=\"https://github.com/laxe4k/spotify-info-color-api/wiki\" target=\"_blank\" rel=\"noreferrer\">Voir la doc</a>
           </div>
           <div class=\"badges\">
             <span class=\"badge\">Flask</span>
