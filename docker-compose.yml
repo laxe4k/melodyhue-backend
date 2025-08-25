@@ -1,0 +1,25 @@
+services:
+  spotify-info-color-api:
+    image: ghcr.io/laxe4k/spotify-info-color-api:latest
+    container_name: spotify_info_color_api
+    ports:
+      - "${SERVER_PORT}:${SERVER_PORT}"
+    environment:
+      - HOST=${SERVER_HOST}
+      - PORT=${SERVER_PORT}
+      - FLASK_DEBUG=${FLASK_DEBUG}
+      - DATA_DIR=/home/spotifyapi/data
+    volumes:
+      - spotify_data:/home/spotifyapi/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${SERVER_PORT}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - spotify-network
+    restart: unless-stopped
+
+volumes:
+  spotify_data:
