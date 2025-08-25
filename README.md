@@ -1,5 +1,12 @@
 # Spotify Info & Color API (Flask)
 
+[![GitHub Release](https://img.shields.io/github/v/release/laxe4k/spotify-info-color-api)](https://github.com/laxe4k/spotify-info-color-api/releases)
+[![GitHub Release Date](https://img.shields.io/github/release-date/laxe4k/spotify-info-color-api)](https://github.com/laxe4k/spotify-info-color-api/releases)
+[![GitHub License](https://img.shields.io/github/license/laxe4k/spotify-info-color-api)](https://github.com/laxe4k/spotify-info-color-api/blob/main/LICENSE)
+[![GitHub contributors](https://img.shields.io/github/contributors/laxe4k/spotify-info-color-api)](https://github.com/laxe4k/spotify-info-color-api/graphs/contributors)
+[![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-ghcr.io-blue)](https://github.com/laxe4k/spotify-info-color-api/pkgs/container/spotify-info-color-api)
+[![GitHub Issues](https://img.shields.io/github/issues/laxe4k/spotify-info-color-api)](https://github.com/laxe4k/spotify-info-color-api/issues)
+
 API Flask qui récupère la piste Spotify en cours, extrait une couleur dominante “naturelle mais punchy”, et expose des endpoints JSON simples. UI incluse pour configurer et connecter Spotify.
 
 ---
@@ -8,23 +15,21 @@ API Flask qui récupère la piste Spotify en cours, extrait une couleur dominant
 
 ```
 spotify-info-color-api/
-├─ run.py                        # Entrypoint (HOST/PORT/FLASK_DEBUG via .env)
+├─ run.py                             # Entrypoint (HOST/PORT/FLASK_DEBUG via .env)
 ├─ app/
-│  ├─ __init__.py                # App factory + enregistrement des blueprints
+│  ├─ __init__.py                     # App factory + enregistrement des blueprints
 │  ├─ controllers/
-│  │  └─ defaultController.py    # Routes: /, /connect, API, OAuth
+│  │  └─ defaultController.py         # Routes: /, /connect, API, OAuth
 │  └─ models/
 │     ├─ __init__.py
-│     ├─ spotify_client.py       # OAuth/Tokens + appels API Spotify
-│     ├─ color_extractor.py      # Téléchargement image + couleur dominante
-│     └─ spotify_color_extractor.py  # Orchestrateur + monitoring
-├─ data/                         # (créé au runtime) tokens & config
+│     ├─ spotify_client.py            # OAuth/Tokens + appels API Spotify
+│     ├─ color_extractor.py           # Téléchargement image + couleur dominante
+│     └─ spotify_color_extractor.py   # Orchestrateur + monitoring
+├─ data/                              # (créé au runtime) tokens & config
 ├─ Dockerfile
 ├─ docker-compose.yml
 ├─ requirements.txt
-├─ LICENSE
-└─ legacy/
-   └─ app.py.old                 # Ancienne version (monolithique)
+└─ LICENSE
 ```
 
 ---
@@ -68,6 +73,7 @@ Exemple recommandé (extrait):
 services:
   spotify-info-color-api:
     image: ghcr.io/laxe4k/spotify-info-color-api:latest
+    container_name: spotify_info_color_api
     ports:
       - "${SERVER_PORT}:${SERVER_PORT}"
     environment:
@@ -77,12 +83,21 @@ services:
       - DATA_DIR=/home/spotifyapi/data   # Utilise le volume persistant
     volumes:
       - spotify_data:/home/spotifyapi/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${SERVER_PORT}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - spotify-network
+    restart: unless-stopped
 
 volumes:
   spotify_data:
 ```
 
-Sur un hôte Ubuntu, les fichiers persistants se trouveront dans le volume Docker (inspectable via `docker volume inspect`). Alternative: bind mount vers un dossier local (ex: `/srv/spotify-info-color-api:/home/spotifyapi/data`).
+Sur un hôte Ubuntu, les fichiers persistants se trouveront dans le volume Docker (généralement `/var/lib/docker/volumes/.../_data`, inspectable via `docker volume inspect`). Alternative: bind mount vers un dossier local (ex: `/srv/spotify-info-color-api:/home/spotifyapi/data`).
 
 ---
 
@@ -107,7 +122,7 @@ Important
 
 ---
 
-## � Endpoints
+## 🔗 Endpoints
 
 - GET `/` — Landing page
 - GET `/connect` — UI config + connexion Spotify
@@ -117,8 +132,8 @@ Important
 - GET `/debug/track` — Debug en cours
 - GET `/spotify/oauth-url` — URL d’auth Spotify
 - GET `/spotify/callback` — Callback OAuth
-- POST `/spotify/logout` — Déconnexion (purge tokens locaux)
 - GET `/settings/spotify` — Lire l’état/config
+- POST `/spotify/logout` — Déconnexion (purge tokens locaux)
 - POST `/settings/spotify` — Enregistrer client_id/secret (sans connexion auto)
 
 Réponses JSON standardisées (status, timestamp, etc.).
@@ -130,7 +145,7 @@ Réponses JSON standardisées (status, timestamp, etc.).
 - Téléchargement pochette (cache 10 images)
 - Filtrage pixels trop sombres, sélection couleur dominante par fréquence/saturation
 - Légère amplification de saturation + éclaircissement si trop sombre
-- Couleur “pause”: `#53ac6a`
+- Couleur "pause": `#53ac6a` (bientôt personnalisable)
 - Cache par track_id (TTL court) pour limiter le recalcul
 
 ---
@@ -155,7 +170,7 @@ curl http://localhost:8765/health
 
 ---
 
-## �️ Dépannage
+## 🛠️ Dépannage
 
 - 400 “redirect_uri_mismatch” sur l’OAuth: assure-toi d’avoir bien ajouté `http(s)://<host>:<port>/spotify/callback` dans le Dashboard Spotify, et d’accéder via la même URL.
 - Données non persistées en Docker: mets `DATA_DIR=/home/spotifyapi/data` et monte un volume sur ce chemin.
