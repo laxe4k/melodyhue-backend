@@ -3,11 +3,12 @@
 Initialisation de l'application Flask (factory)
 """
 
-import os
 import logging
+import os
+
+from dotenv import load_dotenv
 from flask import Flask
 from flask_cors import CORS
-from dotenv import load_dotenv
 
 # Imports locaux
 from .models import SpotifyColorExtractor
@@ -52,7 +53,7 @@ def create_app() -> Flask:
     print("=====================================")
 
     # Enregistrer les blueprints
-    from .controllers.defaultController import bp as default_bp
+    from .controllers.default_controller import bp as default_bp
 
     app.register_blueprint(default_bp)
 
