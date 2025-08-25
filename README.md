@@ -215,4 +215,6 @@ Ce projet est distribué sous licence **MIT** — voir [LICENSE](LICENSE) pour l
 - Documentez les changements dans le changelog
 - Testez avec Docker avant de soumettre
 
+---
+
 Made for fun. Enjoy 🎧
