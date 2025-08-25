@@ -92,8 +92,8 @@ class SpotifyClient:
                 with open(self.tokens_file, "r", encoding="utf-8") as f:
                     tokens = json.load(f)
                     return tokens.get("refresh_token")
-        except:
-            pass
+        except Exception as e:
+            logging.error(f"Error loading refresh token: {e}")
         return None
 
     def _save_tokens(self, access_token, refresh_token=None, expires_in=3600):
@@ -116,14 +116,15 @@ class SpotifyClient:
                         existing_tokens = json.load(f)
                         if existing_tokens.get("refresh_token"):
                             tokens["refresh_token"] = existing_tokens["refresh_token"]
-                except:
+                except Exception:
+                    # Tolérer un JSON corrompu, on réécrira plus tard
                     pass
 
             with open(self.tokens_file, "w", encoding="utf-8") as f:
                 json.dump(tokens, f, indent=2, ensure_ascii=False)
 
             return True
-        except:
+        except Exception:
             return False
 
     def _load_access_token(self):
@@ -141,7 +142,7 @@ class SpotifyClient:
                         self.spotify_token_expires = expires_at
                         return True
             return False
-        except:
+        except Exception:
             return False
 
     def _get_spotify_access_token(self):
@@ -178,7 +179,7 @@ class SpotifyClient:
                 return True
 
             return False
-        except:
+        except Exception:
             return False
 
     def _refresh_access_token(self):
@@ -218,7 +219,7 @@ class SpotifyClient:
                 return True
 
             return False
-        except:
+        except Exception:
             return False
 
     def _test_spotify_api(self):
@@ -321,7 +322,7 @@ class SpotifyClient:
             else:
                 self._last_spotify_result = None
                 return None
-        except:
+        except Exception:
             self.spotify_api_errors += 1
             self._last_spotify_result = None
             return None
@@ -365,7 +366,7 @@ class SpotifyClient:
                 return True
             else:
                 return False
-        except:
+        except Exception:
             return False
 
     # === Helpers OAuth pour l'API ===

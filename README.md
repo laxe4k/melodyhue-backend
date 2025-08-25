@@ -194,4 +194,30 @@ Ce projet est distribué sous licence **MIT** — voir [LICENSE](LICENSE) pour l
 
 ---
 
+## ⚡ Contribuer
+
+### Comment contribuer
+- **Issues** : Signalez des bugs ou proposez des améliorations via [GitHub Issues](https://github.com/laxe4k/spotify-info-color-api/issues)
+- **Pull Requests** : Fork le projet, créez une branche feature, et soumettez vos modifications
+- **Discussions** : Partagez vos idées dans les [GitHub Discussions](https://github.com/laxe4k/spotify-info-color-api/discussions)
+
+### Idées d'améliorations
+- Support multi-utilisateurs avec sessions
+- Algorithmes de couleur alternatifs (palette complète, couleurs complémentaires)
+- Webhooks pour notifier les changements de piste
+- Support d'autres plateformes musicales (Apple Music, Deezer)
+- Interface d'administration avancée
+- Métriques et analytics de l'API
+
+### Guidelines de développement
+- Suivez les conventions Python (PEP 8) — outillage fourni:
+  - Lint/fix: Ruff (config dans `pyproject.toml`), Format: Black
+  - VS Code: formatOnSave activé (voir `.vscode/settings.json`)
+  - Pré-commit: `.pre-commit-config.yaml` (ruff + black)
+    - Installation (une fois): `pip install pre-commit`; `pre-commit install`
+    - Lancer manuellement: `pre-commit run -a`
+- Ajoutez des tests pour les nouvelles fonctionnalités
+- Documentez les changements dans le changelog
+- Testez avec Docker avant de soumettre
+
 Made for fun. Enjoy 🎧

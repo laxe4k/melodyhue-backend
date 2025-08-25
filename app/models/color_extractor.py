@@ -4,7 +4,6 @@ Extracteur de couleurs - Analyse d'images et extraction de couleurs dominantes
 """
 
 import io
-import time
 import requests
 from PIL import Image
 
