@@ -205,17 +205,12 @@ Ce projet est distribué sous licence **MIT** — voir [LICENSE](LICENSE) pour l
 - Support multi-utilisateurs avec sessions
 - Algorithmes de couleur alternatifs (palette complète, couleurs complémentaires)
 - Webhooks pour notifier les changements de piste
-- Support d'autres plateformes musicales (Apple Music, Deezer)
+- Support d'autres plateformes musicales (Apple Music, Deezer, Tidal)
 - Interface d'administration avancée
 - Métriques et analytics de l'API
 
 ### Guidelines de développement
-- Suivez les conventions Python (PEP 8) — outillage fourni:
-  - Lint/fix: Ruff (config dans `pyproject.toml`), Format: Black
-  - VS Code: formatOnSave activé (voir `.vscode/settings.json`)
-  - Pré-commit: `.pre-commit-config.yaml` (ruff + black)
-    - Installation (une fois): `pip install pre-commit`; `pre-commit install`
-    - Lancer manuellement: `pre-commit run -a`
+- Suivez les conventions Python (PEP 8)
 - Ajoutez des tests pour les nouvelles fonctionnalités
 - Documentez les changements dans le changelog
 - Testez avec Docker avant de soumettre
