@@ -52,8 +52,8 @@ COPY --chown=spotifyapi:spotifyapi requirements.txt .
 RUN pip install --user --no-cache-dir -r requirements.txt
 
 # Copier le code
-COPY --chown=spotifyapi:spotifyapi app.py .
-COPY --chown=spotifyapi:spotifyapi models/ ./models/
+COPY --chown=spotifyapi:spotifyapi app/ ./app/
+COPY --chown=spotifyapi:spotifyapi run.py .
 
 # Créer le répertoire de données et attribuer les droits d'utilisateur
 RUN mkdir -p /home/spotifyapi/data && chown -R spotifyapi:spotifyapi /home/spotifyapi/data
@@ -66,4 +66,4 @@ ENV PATH="/home/spotifyapi/.local/bin:${PATH}"
 ENV DISPLAY=:99
 
 # Script de démarrage avec Xvfb
-CMD ["sh", "-c", "Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 & python app.py"]
+CMD ["sh", "-c", "Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 & python run.py"]
