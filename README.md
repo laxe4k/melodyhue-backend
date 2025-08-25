@@ -1,5 +1,12 @@
 # Spotify Info & Color API (Flask)
 
+[![GitHub Release](https://img.shields.io/github/v/release/laxe4k/spotify-info-color-api)](https://github.com/laxe4k/spotify-info-color-api/releases)
+[![GitHub Release Date](https://img.shields.io/github/release-date/laxe4k/spotify-info-color-api)](https://github.com/laxe4k/spotify-info-color-api/releases)
+[![GitHub License](https://img.shields.io/github/license/laxe4k/spotify-info-color-api)](https://github.com/laxe4k/spotify-info-color-api/blob/main/LICENSE)
+[![GitHub contributors](https://img.shields.io/github/contributors/laxe4k/spotify-info-color-api)](https://github.com/laxe4k/spotify-info-color-api/graphs/contributors)
+[![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-ghcr.io-blue)](https://github.com/laxe4k/spotify-info-color-api/pkgs/container/spotify-info-color-api)
+[![GitHub Issues](https://img.shields.io/github/issues/laxe4k/spotify-info-color-api)](https://github.com/laxe4k/spotify-info-color-api/issues)
+
 API Flask qui récupère la piste Spotify en cours, extrait une couleur dominante “naturelle mais punchy”, et expose des endpoints JSON simples. UI incluse pour configurer et connecter Spotify.
 
 ---
