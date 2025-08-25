@@ -1,7 +1,6 @@
-# Dépendances Python pour l'API Spotify Color
-Flask
-Flask-CORS
-selenium
-Pillow
-requests
-python-dotenv
+Flask==3.0.3
+Flask-Cors==4.0.0
+selenium==4.15.2
+pillow==11.3.0
+requests==2.32.4
+python-dotenv==1.0.0
