@@ -53,7 +53,6 @@ RUN pip install --user --no-cache-dir -r requirements.txt
 
 # Copier le code
 COPY --chown=spotifyapi:spotifyapi app/ ./app/
-COPY --chown=spotifyapi:spotifyapi models/ ./models/
 COPY --chown=spotifyapi:spotifyapi run.py .
 
 # Créer le répertoire de données et attribuer les droits d'utilisateur

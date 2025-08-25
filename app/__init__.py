@@ -10,7 +10,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 
 # Imports locaux
-from models import SpotifyColorExtractor
+from .models import SpotifyColorExtractor
 
 
 def create_app() -> Flask:

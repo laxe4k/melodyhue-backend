@@ -13,7 +13,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 
 # Imports locaux
-from models import SpotifyColorExtractor
+from app.models import SpotifyColorExtractor
 
 # Charger les variables d'environnement
 load_dotenv()
