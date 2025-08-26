@@ -19,7 +19,7 @@ spotify-info-color-api/
 ├─ app/
 │  ├─ __init__.py                     # App factory + enregistrement des blueprints
 │  ├─ controllers/
-│  │  └─ defaultController.py         # Routes: /, /connect, API, OAuth
+│  │  └─ default_controller.py        # Routes: /, /connect, API, OAuth
 │  └─ models/
 │     ├─ __init__.py
 │     ├─ spotify_client.py            # OAuth/Tokens + appels API Spotify
