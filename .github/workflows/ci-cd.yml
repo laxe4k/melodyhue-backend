@@ -2,10 +2,10 @@ name: CI/CD - Docker (Python)
 
 on:
   push:
-    tags:
-      - "*"
     branches:
-      - 'dev/*'
+      - "dev/*"
+  release:
+    types: [published]
   workflow_dispatch:
 
 jobs:
@@ -30,13 +30,19 @@ jobs:
         run: |
           REPO=ghcr.io/${{ github.repository }}
 
-          if [[ "${GITHUB_REF}" == refs/heads/dev/* ]]; then
+          # Build tags depending on the event
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            VERSION="${{ github.event.release.tag_name }}"
+            if [[ "${{ github.event.release.prerelease }}" == "true" ]]; then
+              # For prereleases, do not tag as latest
+              TAGS="$REPO:$VERSION"
+            else
+              TAGS="$REPO:$VERSION,$REPO:latest"
+            fi
+          elif [[ "${GITHUB_REF}" == refs/heads/dev/* ]]; then
             TAGS="$REPO:dev"
-          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            VERSION="${GITHUB_REF#refs/tags/}"
-            TAGS="$REPO:$VERSION,$REPO:latest"
           else
-            echo "Branche non supportée pour le build."
+            echo "Branche/événement non supporté pour le build."
             exit 1
           fi
 
