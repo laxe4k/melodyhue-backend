@@ -526,31 +526,26 @@ def user_nowplaying_page_uuid(user_uuid):
     return render_template("nowplaying.html")
 
 
-@bp.route("/u/<username>/nowplaying", methods=["GET"])
-@bp.route("/<username>/nowplaying.json", methods=["GET"])
-def user_nowplaying(username: str):
-    extractor = _user_extractor(username)
-    track = extractor.get_current_track_info()
-    payload = {
-        "user": username,
-        "now_playing": {
-            "id": track.get("id") if track else None,
-            "name": track.get("name") if track else None,
-            "artist": track.get("artist") if track else None,
-            "album": track.get("album") if track else None,
-            "image_url": track.get("image_url") if track else None,
-            "is_playing": track.get("is_playing") if track else False,
-            "progress_ms": track.get("progress_ms") if track else 0,
-            "duration_ms": track.get("duration_ms") if track else 0,
-        },
-    }
-    return jsonify(payload)
+@bp.route("/<username>/nowplaying", methods=["GET"])
+def user_nowplaying_page(username: str):
+    # Sert la page nowplaying
+    if not _resolve_user(username):
+        return jsonify({"status": "error", "error": "Utilisateur introuvable"}), 404
+    return render_template("nowplaying.html")
 
 
 @bp.route("/<uuid:user_uuid>/color-fullscreen", methods=["GET"])
 def user_color_fullscreen_page_uuid(user_uuid):
     user_uuid = str(user_uuid)
     if not _resolve_user(user_uuid):
+        return jsonify({"status": "error", "error": "Utilisateur introuvable"}), 404
+    return render_template("color-fullscreen.html")
+
+
+@bp.route("/<username>/color-fullscreen", methods=["GET"])
+def user_color_fullscreen_page(username: str):
+    # Sert la page color-fullscreen
+    if not _resolve_user(username):
         return jsonify({"status": "error", "error": "Utilisateur introuvable"}), 404
     return render_template("color-fullscreen.html")
 
