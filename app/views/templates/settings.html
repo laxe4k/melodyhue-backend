@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Réglagesutilisateur</title>
+    <title id="titlePage">Réglages</title>
     <link rel="stylesheet" href="/static/css/base.css" />
     <link rel="stylesheet" href="/static/css/pages/settings.css" />
   </head>
@@ -126,8 +126,10 @@
     <script>
       const uid = window.location.pathname.split("/")[1];
       const titleEl = document.getElementById("title");
+      const titlePage = document.getElementById("titlePage");
       const backBtn = document.getElementById("back_user");
       titleEl.textContent = `Réglages`;
+      titlePage.textContent = `Réglages`;
       const uuidRe = /^[0-9a-fA-F-]{36}$/;
       if (uuidRe.test(uid)) {
         backBtn.href = `/${uid}`;
@@ -229,6 +231,7 @@
           if (res.ok && data && data.status === "success") {
             if (data.username) {
               titleEl.textContent = `Réglages - ${data.username}`;
+              titlePage.textContent = `Réglages - ${data.username}`;
             }
             if (data.uuid && uuidRe.test(data.uuid)) {
               backBtn.href = `/${data.uuid}`;
@@ -391,6 +394,7 @@
           if (res.ok && data && data.status === "success") {
             if (data.username) {
               titleEl.textContent = `Réglages - ${data.username}`;
+              titlePage.textContent = `Réglages - ${data.username}`;
               document.getElementById("profile_username").value = data.username;
             }
             if (data.email) {
@@ -435,6 +439,7 @@
             msgSetProfile("success", "Profil mis à jour");
             if (data.username)
               titleEl.textContent = `Réglages - ${data.username}`;
+            titlePage.textContent = `Réglages - ${data.username}`;
           } else {
             msgSetProfile(
               "error",

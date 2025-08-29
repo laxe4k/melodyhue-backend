@@ -47,27 +47,40 @@ def _external_base_url():
         if env_base:
             return env_base.rstrip("/")
 
-        # 2) Reconstruire via en-têtes proxy si disponibles
-        proto = (request.headers.get("X-Forwarded-Proto") or "").split(",")[0].strip()
-        host = (request.headers.get("X-Forwarded-Host") or "").split(",")[0].strip()
-        port = (request.headers.get("X-Forwarded-Port") or "").split(",")[0].strip()
+        # 2) RFC 7239: Forwarded: proto=https;host=example.com
+        fwd = (request.headers.get("Forwarded") or "").split(",")[0]
+        fwd_proto = None
+        fwd_host = None
+        if fwd:
+            parts = [p.strip() for p in fwd.split(";") if p.strip()]
+            for p in parts:
+                if p.lower().startswith("proto="):
+                    fwd_proto = p.split("=", 1)[1].strip().strip('"')
+                elif p.lower().startswith("host="):
+                    fwd_host = p.split("=", 1)[1].strip().strip('"')
+        # 3) X-Forwarded-* classiques
+        xfp = (request.headers.get("X-Forwarded-Proto") or "").split(",")[0].strip()
+        xfh = (request.headers.get("X-Forwarded-Host") or "").split(",")[0].strip()
+        xfp_port = (request.headers.get("X-Forwarded-Port") or "").split(",")[0].strip()
+
+        scheme = (fwd_proto or xfp or request.scheme or "http").lower()
+        host = (fwd_host or xfh or request.host or "").strip()
 
         if host:
-            scheme = proto or request.scheme or "http"
             netloc = host
-            # Si le host ne contient pas déjà un port explicite et qu'un port est fourni, l'ajouter quand utile
+            # Si netloc n'a pas de port et qu'on a un port explicite, l'ajouter quand utile
             if (
                 ":" not in netloc
-                and port
+                and xfp_port
                 and (
-                    (scheme == "http" and port != "80")
-                    or (scheme == "https" and port != "443")
+                    (scheme == "http" and xfp_port != "80")
+                    or (scheme == "https" and xfp_port != "443")
                 )
             ):
-                netloc = f"{netloc}:{port}"
+                netloc = f"{netloc}:{xfp_port}"
             return urlunsplit((scheme, netloc, "", "", "")).rstrip("/")
 
-        # 3) Fallback simple
+        # Fallback simple
         return request.host_url.rstrip("/")
     except Exception:
         return request.host_url.rstrip("/")
@@ -114,7 +127,7 @@ def _user_extractor(ref: str) -> SpotifyColorExtractor:
         extractor = SpotifyColorExtractor()
         redirect_ref = u.uuid if u else username
         extractor.spotify_client.redirect_uri = (
-            request.host_url.rstrip("/") + f"/{redirect_ref}/spotify/callback"
+            _external_base_url() + f"/{redirect_ref}/spotify/callback"
         )
         extractor.spotify_client.configure_spotify_api(cid, csec, refresh_token=refresh)
 
