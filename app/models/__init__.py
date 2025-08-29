@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 """
-Package app.models
+Package app.models (compatibilité) - redirige vers app.services
 """
 
-from .color_extractor import ColorExtractor
-from .spotify_client import SpotifyClient
-from .spotify_color_extractor import SpotifyColorExtractor
+import os
+import glob
 
-__all__ = ["ColorExtractor", "SpotifyClient", "SpotifyColorExtractor"]
+from app.services import ColorExtractor, SpotifyClient, SpotifyColorExtractor
+
+__all__ = [
+    os.path.basename(f)[:-3]
+    for f in glob.glob(os.path.dirname(__file__) + "/*.py")
+    if not os.path.basename(f).startswith("__")
+]
