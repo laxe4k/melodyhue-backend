@@ -111,9 +111,14 @@ SMTP_USER=your@smtp.user
 SMTP_PASSWORD=your.smtp.password
 ```
 
-Générer une clé Fernet (Windows PowerShell):
+Générer une `ENCRYPTION_KEY`
 ```powershell
 python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Générer une `SECRET_KEY`
+```powershell
+python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
 ---
