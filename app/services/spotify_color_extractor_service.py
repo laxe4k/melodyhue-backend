@@ -4,16 +4,17 @@ Extracteur de couleurs Spotify - Combine client Spotify et extraction de couleur
 """
 
 import time
+import os
 import logging
 import threading
-from .spotify_client import SpotifyClient
-from .color_extractor import ColorExtractor
+from .spotify_client_service import SpotifyClient
+from .color_extractor_service import ColorExtractor
 
 
 class SpotifyColorExtractor:
-    def __init__(self, data_dir="./data"):
-        # Initialiser les composants
-        self.spotify_client = SpotifyClient(data_dir)
+    def __init__(self, data_dir: str | None = None):
+        # Initialiser les composants (data_dir ignoré désormais)
+        self.spotify_client = SpotifyClient()
         self.color_extractor = ColorExtractor()
 
         # État actuel
@@ -34,6 +35,9 @@ class SpotifyColorExtractor:
         # Stats
         self.stats = {"requests": 0, "cache_hits": 0, "extractions": 0, "errors": 0}
 
+        # Verbosité des logs (désactivée par défaut). Activer avec VERBOSE_SPOTIFY_LOGS=true
+        self.verbose_logs = os.getenv("VERBOSE_SPOTIFY_LOGS", "false").lower() == "true"
+
         # Démarrer la surveillance
         self.start_monitoring()
 
@@ -47,7 +51,8 @@ class SpotifyColorExtractor:
             target=self._monitoring_loop, daemon=True
         )
         self.monitoring_thread.start()
-        logging.info("⚡ Surveillance active - Logs réduits")
+        if self.verbose_logs:
+            logging.info("⚡ Surveillance active - Logs réduits")
 
     def _monitoring_loop(self):
         """Surveillance silencieuse - logs seulement les changements"""
@@ -79,24 +84,27 @@ class SpotifyColorExtractor:
 
                         # Prioriser le changement de piste pour éviter les doublons
                         if track_changed:
-                            logging.info(
-                                f"🎵 {track_info.get('artist', 'Unknown')} - {track_info.get('name', 'Unknown')}"
-                            )
+                            if self.verbose_logs:
+                                logging.info(
+                                    f"🎵 {track_info.get('artist', 'Unknown')} - {track_info.get('name', 'Unknown')}"
+                                )
                             self.current_track_image_url = track_info.get("image_url")
                             self.current_track_id = current_track_id
                             self.color_cache.clear()
                             if current_is_playing:
                                 new_color = self.extract_color()
-                                logging.info(
-                                    f"🎨 #{new_color[0]:02x}{new_color[1]:02x}{new_color[2]:02x}"
-                                )
+                                if self.verbose_logs:
+                                    logging.info(
+                                        f"🎨 #{new_color[0]:02x}{new_color[1]:02x}{new_color[2]:02x}"
+                                    )
                             last_track_id = current_track_id
                             last_is_playing = current_is_playing
                         elif playstate_changed:
                             if current_is_playing:
-                                logging.info(
-                                    f"▶️ {track_info.get('artist', 'Unknown')} - {track_info.get('name', 'Unknown')}"
-                                )
+                                if self.verbose_logs:
+                                    logging.info(
+                                        f"▶️ {track_info.get('artist', 'Unknown')} - {track_info.get('name', 'Unknown')}"
+                                    )
                                 if self.current_track_id != current_track_id:
                                     self.current_track_image_url = track_info.get(
                                         "image_url"
@@ -104,16 +112,19 @@ class SpotifyColorExtractor:
                                     self.current_track_id = current_track_id
                                     self.color_cache.clear()
                                 new_color = self.extract_color()
-                                logging.info(
-                                    f"🎨 #{new_color[0]:02x}{new_color[1]:02x}{new_color[2]:02x}"
-                                )
+                                if self.verbose_logs:
+                                    logging.info(
+                                        f"🎨 #{new_color[0]:02x}{new_color[1]:02x}{new_color[2]:02x}"
+                                    )
                             else:
-                                logging.info("⏸️ PAUSE")
+                                if self.verbose_logs:
+                                    logging.info("⏸️ PAUSE")
                             last_is_playing = current_is_playing
                     else:
                         # Reset silencieux si plus de musique
                         if last_track_id is not None or last_is_playing is not None:
-                            logging.info("🔇 STOP")
+                            if self.verbose_logs:
+                                logging.info("🔇 STOP")
                             last_track_id = None
                             last_is_playing = None
 

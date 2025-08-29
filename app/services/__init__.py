@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """
-Package app.models (compatibilité) - redirige vers app.services
+Package app.services
 """
 
 import os
 import glob
 
-from app.services import ColorExtractor, SpotifyClient, SpotifyColorExtractor
+from .color_extractor_service import ColorExtractor
+from .spotify_client_service import SpotifyClient
+from .spotify_color_extractor_service import SpotifyColorExtractor
 
 __all__ = [
     os.path.basename(f)[:-3]

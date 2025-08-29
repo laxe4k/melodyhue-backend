@@ -8,6 +8,7 @@ import time
 import json
 import base64
 import logging
+from typing import Callable, Optional
 import requests
 from dotenv import load_dotenv
 
@@ -15,15 +16,26 @@ load_dotenv()
 
 
 class SpotifyClient:
-    def __init__(self, data_dir="./data"):
-        self.data_dir = data_dir
-        os.makedirs(self.data_dir, exist_ok=True)
-        self.tokens_file = os.path.join(self.data_dir, "spotify_tokens.json")
+    def __init__(self, persist_to_file: bool = False):
+        """Client Spotify.
 
-        # Créer le fichier tokens s'il n'existe pas
-        if not os.path.exists(self.tokens_file):
-            with open(self.tokens_file, "w", encoding="utf-8") as f:
-                json.dump({}, f)
+        persist_to_file: si True, active le stockage de compatibilité sur fichier JSON (désactivé par défaut).
+        """
+        # Persistance optionnelle des tokens sur disque (désactivée par défaut)
+        self._persist_to_file = bool(persist_to_file)
+        if self._persist_to_file:
+            # Ordre de recherche/compat: SPOTIFY_TOKENS_FILE > instance/spotify_tokens.json > data/spotify_tokens.json (legacy)
+            env_path = os.getenv("SPOTIFY_TOKENS_FILE")
+            inst_path = os.path.join(os.getcwd(), "instance", "spotify_tokens.json")
+            legacy_path = os.path.join(os.getcwd(), "data", "spotify_tokens.json")
+            self.tokens_file_candidates = [
+                p for p in [env_path, inst_path, legacy_path] if p
+            ]
+            # Le premier chemin servira pour l'écriture; on choisit env>instance>legacy
+            self.tokens_file_write = env_path or inst_path
+        else:
+            self.tokens_file_candidates = []
+            self.tokens_file_write = None
 
         # Spotify API credentials
         self.spotify_client_id = None
@@ -37,6 +49,8 @@ class SpotifyClient:
         self.redirect_uri = os.getenv(
             "SPOTIFY_REDIRECT_URI", "http://localhost:8765/spotify/callback"
         )
+        # Callback appelé lorsqu'un nouveau refresh_token est reçu (ex: persistance DB par utilisateur)
+        self.on_refresh_token: Optional[Callable[[str], None]] = None
 
         # Cache pour éviter les appels répétés
         self._last_spotify_check = 0
@@ -50,22 +64,11 @@ class SpotifyClient:
         client_id = os.getenv("SPOTIFY_CLIENT_ID")
         client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
 
-        # Fallback: charger depuis data/spotify_config.json
-        if not client_id or not client_secret:
-            try:
-                cfg_path = os.path.join(self.data_dir, "spotify_config.json")
-                if os.path.exists(cfg_path):
-                    with open(cfg_path, "r", encoding="utf-8") as f:
-                        cfg = json.load(f)
-                        client_id = client_id or cfg.get("client_id")
-                        client_secret = client_secret or cfg.get("client_secret")
-                        if cfg.get("redirect_uri"):
-                            self.redirect_uri = cfg["redirect_uri"]
-            except Exception:
-                pass
+        # Fallback: SPOTIFY_REFRESH_TOKEN (utile pour un mode global sans DB)
+        env_refresh = os.getenv("SPOTIFY_REFRESH_TOKEN")
 
         if client_id and client_secret:
-            refresh_token = self._load_refresh_token()
+            refresh_token = env_refresh or self._load_refresh_token()
             if self.configure_spotify_api(client_id, client_secret, refresh_token):
                 if self._test_spotify_api():
                     logging.info("✅ Spotify API connectée")
@@ -86,64 +89,83 @@ class SpotifyClient:
         return False
 
     def _load_refresh_token(self):
-        """Charger le refresh token depuis le fichier JSON"""
+        """Charger un refresh token s'il existe sur disque (compat instance/ et data/)."""
+        if not self._persist_to_file:
+            return None
         try:
-            if os.path.exists(self.tokens_file):
-                with open(self.tokens_file, "r", encoding="utf-8") as f:
-                    tokens = json.load(f)
-                    return tokens.get("refresh_token")
-        except Exception as e:
-            logging.error(f"Error loading refresh token: {e}")
+            for path in self.tokens_file_candidates:
+                if path and os.path.exists(path):
+                    with open(path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    rt = data.get("refresh_token")
+                    if rt:
+                        self.spotify_refresh_token = rt
+                        # Charger aussi access token si valide
+                        at = data.get("access_token")
+                        exp = data.get("expires_at")
+                        if at and isinstance(exp, (int, float)) and time.time() < exp:
+                            self.spotify_access_token = at
+                            self.spotify_token_expires = exp
+                        return rt
+        except Exception:
+            return None
         return None
 
     def _save_tokens(self, access_token, refresh_token=None, expires_in=3600):
-        """Sauvegarder les tokens dans le fichier JSON"""
-        try:
-            tokens = {
-                "access_token": access_token,
-                "expires_at": time.time() + expires_in,
-                "created_at": time.time(),
-                "last_updated": time.time(),
-            }
-
-            if refresh_token:
-                tokens["refresh_token"] = refresh_token
-
-            # Conserver le refresh token existant s'il n'y en a pas de nouveau
-            if not refresh_token and os.path.exists(self.tokens_file):
-                try:
-                    with open(self.tokens_file, "r", encoding="utf-8") as f:
-                        existing_tokens = json.load(f)
-                        if existing_tokens.get("refresh_token"):
-                            tokens["refresh_token"] = existing_tokens["refresh_token"]
-                except Exception:
-                    # Tolérer un JSON corrompu, on réécrira plus tard
-                    pass
-
-            with open(self.tokens_file, "w", encoding="utf-8") as f:
-                json.dump(tokens, f, indent=2, ensure_ascii=False)
-
-            return True
-        except Exception:
-            return False
+        """Sauvegarder tokens en mémoire et sur disque (si possible)."""
+        self.spotify_access_token = access_token
+        self.spotify_token_expires = time.time() + expires_in
+        if refresh_token:
+            self.spotify_refresh_token = refresh_token
+            # Informer le callback externe si présent
+            try:
+                if self.on_refresh_token and isinstance(refresh_token, str):
+                    self.on_refresh_token(refresh_token)
+            except Exception:
+                pass
+        # Persister sur disque
+        if self._persist_to_file:
+            try:
+                target = self.tokens_file_write
+                # Créer dossier si nécessaire
+                if target:
+                    os.makedirs(os.path.dirname(target), exist_ok=True)
+                    with open(target, "w", encoding="utf-8") as f:
+                        json.dump(
+                            {
+                                "access_token": self.spotify_access_token,
+                                "refresh_token": self.spotify_refresh_token,
+                                "expires_at": self.spotify_token_expires,
+                            },
+                            f,
+                            ensure_ascii=False,
+                            indent=2,
+                        )
+            except Exception:
+                pass
+        return True
 
     def _load_access_token(self):
-        """Charger l'access token depuis le fichier JSON si encore valide"""
-        try:
-            if os.path.exists(self.tokens_file):
-                with open(self.tokens_file, "r", encoding="utf-8") as f:
-                    tokens = json.load(f)
-
-                    access_token = tokens.get("access_token")
-                    expires_at = tokens.get("expires_at", 0)
-
-                    if access_token and time.time() < (expires_at - 300):
-                        self.spotify_access_token = access_token
-                        self.spotify_token_expires = expires_at
-                        return True
+        """Charger l'access token depuis le fichier si non expiré."""
+        if not self._persist_to_file:
             return False
+        try:
+            for path in self.tokens_file_candidates:
+                if path and os.path.exists(path):
+                    with open(path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    at = data.get("access_token")
+                    exp = data.get("expires_at")
+                    rt = data.get("refresh_token")
+                    if at and isinstance(exp, (int, float)) and time.time() < exp:
+                        self.spotify_access_token = at
+                        self.spotify_token_expires = exp
+                        if rt:
+                            self.spotify_refresh_token = rt
+                        return True
         except Exception:
             return False
+        return False
 
     def _get_spotify_access_token(self):
         """Obtenir un token d'accès Spotify"""
@@ -351,10 +373,14 @@ class SpotifyClient:
                 token_data = response.json()
 
                 self.spotify_access_token = token_data["access_token"]
-                self.spotify_refresh_token = token_data.get("refresh_token")
+                # Conserver le refresh_token existant si aucun nouveau n'est renvoyé
+                new_rt = token_data.get("refresh_token")
+                if new_rt:
+                    self.spotify_refresh_token = new_rt
                 expires_in = token_data.get("expires_in", 3600)
                 self.spotify_token_expires = time.time() + expires_in - 60
 
+                # Persister access + refresh (avec refresh actuel éventuellement non modifié)
                 self._save_tokens(
                     self.spotify_access_token, self.spotify_refresh_token, expires_in
                 )
@@ -380,7 +406,8 @@ class SpotifyClient:
             "redirect_uri": self.redirect_uri,
             # Scopes requis pour lire la musique actuelle
             "scope": "user-read-currently-playing user-read-playback-state",
-            "show_dialog": "false",
+            # show_dialog=true peut forcer la régénération du refresh_token
+            "show_dialog": os.getenv("SPOTIFY_SHOW_DIALOG", "false").lower(),
         }
         return f"https://accounts.spotify.com/authorize?{requests.compat.urlencode(params)}"
 
@@ -410,12 +437,7 @@ class SpotifyClient:
             self.spotify_token_expires = 0
             self._last_spotify_result = None
             # Vider fichier tokens
-            try:
-                if os.path.exists(self.tokens_file):
-                    with open(self.tokens_file, "w", encoding="utf-8") as f:
-                        json.dump({}, f)
-            except Exception:
-                pass
+            # Plus de fichiers à nettoyer
             return True
         except Exception:
             return False

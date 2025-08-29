@@ -5,10 +5,27 @@ services:
     ports:
       - "${SERVER_PORT}:${SERVER_PORT}"
     environment:
-      - HOST=${SERVER_HOST}
-      - PORT=${SERVER_PORT}
-      - FLASK_DEBUG=${FLASK_DEBUG}
-      - DATA_DIR=/home/spotifyapi/data
+      # Flask configuration
+      SECRET_KEY: ${SECRET_KEY}
+      HOST: ${HOST}
+      PORT: ${PORT}
+      FLASK_DEBUG: ${FLASK_DEBUG}
+
+      # Spotify API configuration (optionnel)
+      SPOTIFY_REDIRECT_URI: ${SPOTIFY_REDIRECT_URI}
+
+      # DB configuration
+      DB_HOST: ${DB_HOST}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_PORT: ${DB_PORT}
+
+      # SMTP configuration (not used for now)
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
     volumes:
       - spotify_data:/home/spotifyapi/data
     healthcheck:
