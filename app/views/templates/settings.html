@@ -568,19 +568,36 @@
         const inp = document.getElementById("redirect_uri");
         const btn = document.getElementById("copy_redirect");
         const original = btn.textContent;
-        try {
-          await navigator.clipboard.writeText(inp.value);
+        const succeed = () => {
           btn.textContent = "Copié!";
           btn.disabled = true;
           setTimeout(() => {
             btn.textContent = original;
             btn.disabled = false;
           }, 1200);
-        } catch (e) {
+        };
+        const fail = () => {
           btn.textContent = "Échec";
           setTimeout(() => {
             btn.textContent = original;
           }, 1200);
+        };
+        try {
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(inp.value);
+            succeed();
+            return;
+          }
+          // Fallback non sécurisé: sélection + execCommand
+          inp.removeAttribute("readonly");
+          inp.select();
+          inp.setSelectionRange(0, inp.value.length);
+          const ok = document.execCommand && document.execCommand("copy");
+          inp.setAttribute("readonly", "");
+          window.getSelection && window.getSelection().removeAllRanges();
+          ok ? succeed() : fail();
+        } catch (e) {
+          fail();
         }
       };
 

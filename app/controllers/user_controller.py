@@ -16,6 +16,7 @@ from app.services.user_service import UserService
 from app.models.user_model import User
 import re
 from app.services import SpotifyColorExtractor
+from urllib.parse import urlunsplit
 
 bp = Blueprint("user", __name__)
 
@@ -30,6 +31,46 @@ def _user_service():
         us = UserService()
         current_app.extensions["user_service"] = us
     return us
+
+
+def _external_base_url():
+    """Construit l'URL publique de base (schéma + hôte + port) en privilégiant:
+    1. PUBLIC_BASE_URL (env), p.ex. https://api.example.com
+    2. En-têtes proxy (X-Forwarded-Proto/Host/Port)
+    3. request.host_url (fallback)
+
+    Renvoie une chaîne sans slash final.
+    """
+    try:
+        # 1) Forcer via variable d'env si fournie
+        env_base = (os.getenv("PUBLIC_BASE_URL") or "").strip()
+        if env_base:
+            return env_base.rstrip("/")
+
+        # 2) Reconstruire via en-têtes proxy si disponibles
+        proto = (request.headers.get("X-Forwarded-Proto") or "").split(",")[0].strip()
+        host = (request.headers.get("X-Forwarded-Host") or "").split(",")[0].strip()
+        port = (request.headers.get("X-Forwarded-Port") or "").split(",")[0].strip()
+
+        if host:
+            scheme = proto or request.scheme or "http"
+            netloc = host
+            # Si le host ne contient pas déjà un port explicite et qu'un port est fourni, l'ajouter quand utile
+            if (
+                ":" not in netloc
+                and port
+                and (
+                    (scheme == "http" and port != "80")
+                    or (scheme == "https" and port != "443")
+                )
+            ):
+                netloc = f"{netloc}:{port}"
+            return urlunsplit((scheme, netloc, "", "", "")).rstrip("/")
+
+        # 3) Fallback simple
+        return request.host_url.rstrip("/")
+    except Exception:
+        return request.host_url.rstrip("/")
 
 
 def _resolve_user(ref: str) -> User | None:
@@ -561,9 +602,9 @@ def user_spotify_oauth_url(username: str):
         return jsonify({"status": "error", "error": "Unauthorized"}), 401
     extractor = _user_extractor(username)
     if extractor and extractor.spotify_client.spotify_client_id:
-        # S'assurer que le redirect est bien par utilisateur
+        # S'assurer que le redirect est bien par utilisateur, avec URL publique fiable (HTTPS si proxy)
         extractor.spotify_client.redirect_uri = (
-            request.host_url.rstrip("/") + f"/{username}/spotify/callback"
+            _external_base_url() + f"/{username}/spotify/callback"
         )
         auth_url = extractor.spotify_client.get_auth_url()
         return jsonify(
@@ -592,7 +633,7 @@ def user_spotify_oauth_url_uuid(user_uuid):
     extractor = _user_extractor(user_uuid)
     if extractor and extractor.spotify_client.spotify_client_id:
         extractor.spotify_client.redirect_uri = (
-            request.host_url.rstrip("/") + f"/{user_uuid}/spotify/callback"
+            _external_base_url() + f"/{user_uuid}/spotify/callback"
         )
         auth_url = extractor.spotify_client.get_auth_url()
         return jsonify(
@@ -854,7 +895,7 @@ def user_spotify_settings(username: str):
     except Exception:
         is_auth = False
     # Fournir une Redirect URI recommandée pour configuration côté Spotify (copiable avant connexion)
-    base = request.host_url.rstrip("/")
+    base = _external_base_url()
     # Conserver le segment fourni côté URL pour cohérence visuelle
     recommended_redirect_uri = f"{base}/{username}/spotify/callback"
     # Vérifier validité de la clé de chiffrement
@@ -1054,7 +1095,7 @@ def user_spotify_settings_uuid(user_uuid):
         is_auth = ex.spotify_client.is_authenticated() if ex else False
     except Exception:
         is_auth = False
-    base = request.host_url.rstrip("/")
+    base = _external_base_url()
     recommended_redirect_uri = f"{base}/{user_uuid}/spotify/callback"
     # Vérifier validité de la clé de chiffrement
     from app.security.crypto import encrypt_str
