@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Profil</title>
+    <title id="titlePage">Profil</title>
     <link rel="stylesheet" href="/static/css/base.css" />
     <link rel="stylesheet" href="/static/css/pages/user.css" />
   </head>
@@ -84,6 +84,7 @@
     <script>
       const ref = location.pathname.split("/")[1];
       const titleEl = document.getElementById("title");
+      const titlePage = document.getElementById("titlePage");
       const tplUser = titleEl.textContent.trim();
       const tplUuid = document.getElementById("uuid").textContent.trim();
       const api = (ep) => {
@@ -209,6 +210,7 @@
           const uid = info?.uuid || tplUuid || ref;
           document.getElementById("uuid").textContent = uid;
           titleEl.textContent = uname || "Profil";
+          titlePage.textContent = uname ? `Profil - ${uname}` : "Profil";
           // Propager ?default=... si présent dans l'URL
           const url = new URL(location.href);
           const d = url.searchParams.get("default");
