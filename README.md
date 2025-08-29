@@ -62,33 +62,9 @@ spotify-info-color-api/
 pip install -r requirements.txt
 ```
 
-2) Variables d’environnement (facultatif)
+2) Variables d’environnement
 
-Créez un `.env` minimal (pas de secrets Spotify ici):
-
-```env
-# Flask configuration
-SECRET_KEY=dev-secret-key
-HOST=0.0.0.0
-PORT=8765
-FLASK_DEBUG=False
-
-# Spotify API configuration (optional)
-SPOTIFY_REDIRECT_URI=http://localhost:8765/spotify/callback
-
-# DB configuration
-DB_HOST="your.db.host"
-DB_DATABASE="your.db.name"
-DB_USER="your.db.user"
-DB_PASSWORD="your.db.password"
-DB_PORT=3306
-
-# SMTP configuration (not used for now)
-SMTP_HOST="your.smtp.host"
-SMTP_PORT=587
-SMTP_USER="your@smtp.user"
-SMTP_PASSWORD="your.smtp.password"
-```
+Reportez-vous à la section ci‑dessous « Variables d’environnement (.env commun) ».
 
 3) Lancer
 
@@ -98,11 +74,83 @@ python run.py
 
 4) Ouvrir l’UI
 - Accueil: http://localhost:8765/
-- Connexion: http://localhost:8765/connect
+- Connexion: http://localhost:8765/login
+- Inscription: http://localhost:8765/register
+
+---
+
+### Variables d’environnement (.env commun)
+
+Ces variables sont utilisées à la fois en exécution locale et avec Docker Compose.
+
+Exemple de `.env` minimal (à la racine du projet):
+```env
+# Flask
+SECRET_KEY=dev-secret-key
+HOST=0.0.0.0
+PORT=8765
+FLASK_DEBUG=False
+
+# Chiffrement (Fernet, 32 octets base64)
+ENCRYPTION_KEY=YOUR_ENCRYPTION_KEY
+
+# Spotify (optionnel)
+SPOTIFY_REDIRECT_URI=http://localhost:8765/spotify/callback
+
+# Base de données
+DB_HOST=your.db.host
+DB_DATABASE=your.db.name
+DB_USER=your.db.user
+DB_PASSWORD=your.db.password
+DB_PORT=3306
+
+# SMTP (optionnel)
+SMTP_HOST=your.smtp.host
+SMTP_PORT=587
+SMTP_USER=your@smtp.user
+SMTP_PASSWORD=your.smtp.password
+```
+
+Générer une clé Fernet (Windows PowerShell):
+```powershell
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+---
+
+### Option A - Python local
+
+1) Installer les dépendances
+
+```powershell
+pip install -r requirements.txt
+```
+
+2) Variables d’environnement
+```powershell
+# Copier le fichier d'exemple
+cp .env.example .env
+# ou
+copy .env.example .env
+```
+> *N'oubliez pas de remplir les variables d'environnement dans le fichier `.env` avec vos propres valeurs.*
+
+3) Lancer
+
+```powershell
+python run.py
+```
+
+4) Ouvrir l’UI
+- Accueil: http://localhost:8765/
+- Connexion: http://localhost:8765/login
+- Inscription: http://localhost:8765/register
+
+---
 
 ### Option B - Docker Compose
 
-Exemple recommandé (extrait):
+1) Docker Compose
 
 ```yaml
 services:
@@ -110,7 +158,7 @@ services:
     image: ghcr.io/laxe4k/spotify-info-color-api:latest
     container_name: spotify_info_color_api
     ports:
-      - "${SERVER_PORT}:${SERVER_PORT}"
+      - "${PORT}:${PORT}"
     environment:
       # Flask configuration
       SECRET_KEY: ${SECRET_KEY}
@@ -118,7 +166,10 @@ services:
       PORT: ${PORT}
       FLASK_DEBUG: ${FLASK_DEBUG}
 
-      # Spotify API configuration (optional)
+      # Encryption configuration
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+
+      # Spotify API configuration (optionnel)
       SPOTIFY_REDIRECT_URI: ${SPOTIFY_REDIRECT_URI}
 
       # DB configuration
@@ -136,7 +187,7 @@ services:
     volumes:
       - spotify_data:/home/spotifyapi/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${SERVER_PORT}/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT}/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -147,10 +198,33 @@ services:
 
 volumes:
   spotify_data:
-
 ```
 
-Sur un hôte Ubuntu, les fichiers persistants se trouveront dans le volume Docker (généralement `/var/lib/docker/volumes/.../_data`, inspectable via `docker volume inspect`). Alternative: bind mount vers un dossier local (ex: `/srv/spotify-info-color-api:/home/spotifyapi/data`).
+
+2) Préparer le fichier `.env`
+
+```powershell
+# Copier le fichier d'exemple
+cp .env.example .env
+# ou
+copy .env.example .env
+```
+> *N'oubliez pas de remplir les variables d'environnement dans le fichier `.env` avec vos propres valeurs.*
+
+3) Lancer
+
+```powershell
+# Si votre `.env` est à côté de `docker-compose.yml` (recommandé)
+docker compose up -d
+
+# Si votre fichier d'environnement est ailleurs
+# docker compose --env-file .env up -d
+```
+
+4) Ouvrir l’UI
+- Accueil: http://localhost:8765/
+- Connexion: http://localhost:8765/login
+- Inscription: http://localhost:8765/register
 
 ---
 
