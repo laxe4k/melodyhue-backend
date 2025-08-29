@@ -85,30 +85,27 @@ Ces variables sont utilisées à la fois en exécution locale et avec Docker Com
 
 Exemple de `.env` minimal (à la racine du projet):
 ```env
-# Flask
-SECRET_KEY=dev-secret-key
+# Flask configuration
+SECRET_KEY="YOUR_SECRET_KEY"
 HOST=0.0.0.0
 PORT=8765
 FLASK_DEBUG=False
 
-# Chiffrement (Fernet, 32 octets base64)
-ENCRYPTION_KEY=YOUR_ENCRYPTION_KEY
+# Encryption configuration
+ENCRYPTION_KEY="YOUR_ENCRYPTION_KEY"
 
-# Spotify (optionnel)
-SPOTIFY_REDIRECT_URI=http://localhost:8765/spotify/callback
-
-# Base de données
-DB_HOST=your.db.host
-DB_DATABASE=your.db.name
-DB_USER=your.db.user
-DB_PASSWORD=your.db.password
+# DB configuration
+DB_HOST="your.db.host"
+DB_DATABASE="your.db.name"
+DB_USER="your.db.user"
+DB_PASSWORD="your.db.password"
 DB_PORT=3306
 
-# SMTP (optionnel)
-SMTP_HOST=your.smtp.host
+# SMTP configuration (not used for now)
+SMTP_HOST="your.smtp.host"
 SMTP_PORT=587
-SMTP_USER=your@smtp.user
-SMTP_PASSWORD=your.smtp.password
+SMTP_USER="your@smtp.user"
+SMTP_PASSWORD="your.smtp.password"
 ```
 
 Générer une `ENCRYPTION_KEY`
@@ -173,9 +170,6 @@ services:
 
       # Encryption configuration
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
-
-      # Spotify API configuration (optionnel)
-      SPOTIFY_REDIRECT_URI: ${SPOTIFY_REDIRECT_URI}
 
       # DB configuration
       DB_HOST: ${DB_HOST}
