@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Connexion</title>
+    <link rel="stylesheet" href="/static/css/base.css" />
+    <link rel="stylesheet" href="/static/css/pages/login.css" />
+  </head>
+  <body>
+    <div class="auth-shell">
+      <div class="card auth-card">
+        <div class="card-head">
+          <h1>Connexion</h1>
+          <a class="btn secondary" href="/">← Accueil</a>
+        </div>
+        <p class="muted">Accédez à votre page publique /&lt;UUID&gt;.</p>
+        <label for="username">Nom d'utilisateur</label>
+        <input
+          id="username"
+          placeholder="Nom d'utilisateur"
+          autocomplete="username"
+        />
+        <label for="password">Mot de passe</label>
+        <input
+          id="password"
+          type="password"
+          placeholder="Mot de passe"
+          autocomplete="current-password"
+        />
+        <button id="cta" class="btn primary block">Se connecter</button>
+        <div class="row" style="margin-top: 10px">
+          <span class="muted"
+            >Pas de compte ? <a href="/register">Créer un compte</a></span
+          >
+        </div>
+        <div id="msg" class="msg hidden"></div>
+      </div>
+    </div>
+    <script>
+      const el = (id) => document.getElementById(id);
+      const msg = (t, kind = "error") => {
+        const m = el("msg");
+        m.textContent = t || "";
+        m.className =
+          "msg " + (t ? (kind === "error" ? "error" : "success") : "hidden");
+      };
+      const submit = async () => {
+        const u = el("username").value.trim();
+        const p = el("password").value;
+        if (!u || !p) {
+          msg("Veuillez renseigner identifiant et mot de passe", "error");
+          return;
+        }
+        msg("");
+        const r = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ username: u, password: p }),
+        });
+        let j = {};
+        try {
+          j = await r.json();
+        } catch {}
+        if (j.status === "success" && j.uuid) {
+          window.location.href = `/${encodeURIComponent(j.uuid)}`;
+        } else {
+          msg(j.error || "Identifiants invalides", "error");
+        }
+      };
+      el("cta").onclick = submit;
+      el("password").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") submit();
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Spotify - Callback</title>
+    <link rel="stylesheet" href="/static/css/base.css" />
+    <link rel="stylesheet" href="/static/css/pages/callback.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <div class="card">
+        <h1 style="color: {{ accent|default('#64c8ff') }}">{{ title }}</h1>
+        <p class="muted">{{ message }}</p>
+        <div class="row mt-2">
+          <a class="btn secondary" href="{{ return_url or '/' }}"
+            >← Retour aux réglages</a
+          >
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

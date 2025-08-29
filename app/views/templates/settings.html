@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Réglagesutilisateur</title>
+    <link rel="stylesheet" href="/static/css/base.css" />
+    <link rel="stylesheet" href="/static/css/pages/settings.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="page-head">
+        <h2 id="title">Réglages</h2>
+        <a id="back_user" class="btn secondary hidden" href="#"
+          >← Retour à la page utilisateur</a
+        >
+      </div>
+      <div class="grid">
+        <!-- Carte profil utilisateur -->
+        <div class="card">
+          <h3>Profil</h3>
+
+          <label for="profile_username">Nom d'utilisateur</label>
+          <input id="profile_username" placeholder="Nom d'utilisateur" />
+
+          <label for="profile_email">Email</label>
+          <input id="profile_email" type="email" placeholder="Email" />
+
+          <div class="actions">
+            <button class="btn accent" id="save_profile">Enregistrer</button>
+          </div>
+          <div id="message_profile" class="msg hidden"></div>
+        </div>
+
+        <!-- Carte mot de passe -->
+        <div class="card">
+          <h3>Mot de passe</h3>
+          <label for="pwd_current">Mot de passe actuel</label>
+          <input
+            id="pwd_current"
+            type="password"
+            placeholder="Mot de passe actuel"
+          />
+          <label for="pwd_new">Nouveau mot de passe</label>
+          <input
+            id="pwd_new"
+            type="password"
+            placeholder="Nouveau mot de passe (min 8)"
+          />
+          <div class="actions">
+            <button class="btn accent" id="save_password">
+              Changer le mot de passe
+            </button>
+          </div>
+          <div id="message_password" class="msg hidden"></div>
+        </div>
+
+        <!-- Carte configuration Spotify -->
+        <div class="card">
+          <h3>Configuration Spotify</h3>
+          <div id="chips" class="status-chips mt-1"></div>
+
+          <label for="client_id">Client ID</label>
+          <input id="client_id" placeholder="Client ID" />
+
+          <label for="client_secret">Client Secret</label>
+          <input
+            id="client_secret"
+            placeholder="Client Secret"
+            type="password"
+          />
+
+          <label for="redirect_uri" class="mt-2"
+            >Redirect URI (à copier dans Spotify Dashboard)</label
+          >
+          <div class="row redirect-row">
+            <input id="redirect_uri" readonly />
+            <button class="btn" id="copy_redirect">Copier</button>
+          </div>
+
+          <div class="actions">
+            <button class="btn accent" id="save">Enregistrer</button>
+            <button class="btn primary" id="connect" disabled>
+              Connecter Spotify
+            </button>
+            <button class="btn red" id="logout">Déconnecter</button>
+          </div>
+          <div id="message" class="msg hidden"></div>
+        </div>
+
+        <!-- Carte affichage: Couleur par défaut -->
+        <div class="card">
+          <h3>Affichage</h3>
+          <label for="default_color"
+            >Couleur par défaut (si rien ne joue)</label
+          >
+          <div class="row" style="align-items: center; gap: 10px">
+            <input id="default_color" type="color" value="#53ac6a" />
+            <span class="muted" id="color_label">#53ac6a</span>
+          </div>
+          <div id="color_preview" class="sw" style="margin-top: 10px"></div>
+          <div class="actions">
+            <button class="btn accent" id="save_display">Enregistrer</button>
+            <button class="btn red" id="clear_display">Supprimer</button>
+          </div>
+          <div id="message_display" class="msg hidden"></div>
+        </div>
+      </div>
+
+      <!-- Carte aide pleine largeur -->
+      <div class="card mt-3">
+        <h3>Aide</h3>
+        <ul class="guide mt-2">
+          <li>Copiez la Redirect URI ci-contre dans le Dashboard Spotify.</li>
+          <li>
+            Renseignez Client ID et Client Secret puis cliquez sur Enregistrer.
+          </li>
+          <li>
+            Quand tout est OK, cliquez sur Connecter Spotify pour lier votre
+            compte.
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <script>
+      const uid = window.location.pathname.split("/")[1];
+      const titleEl = document.getElementById("title");
+      const backBtn = document.getElementById("back_user");
+      titleEl.textContent = `Réglages`;
+      const uuidRe = /^[0-9a-fA-F-]{36}$/;
+      if (uuidRe.test(uid)) {
+        backBtn.href = `/${uid}`;
+        backBtn.classList.remove("hidden");
+      }
+      // Préremplir une Redirect URI utile même sans fetch
+      const prefillRedirect = () => {
+        const red = document.getElementById("redirect_uri");
+        red.value = `${location.origin}/${uid}/spotify/callback`;
+      };
+      prefillRedirect();
+
+      const serverState = {
+        client_id_set: false,
+        encryption_ready: false,
+        encryption_valid: true,
+        spotify_connected: undefined,
+      };
+      let lastErrorMsg = "";
+      let lastProfileMsg = "";
+
+      function renderChips() {
+        const chips = document.getElementById("chips");
+        const cid = document.getElementById("client_id").value.trim();
+        const hasLocalId = cid.length > 0;
+        const idOk = serverState.client_id_set;
+        const idLabel = idOk
+          ? "Client ID ok"
+          : hasLocalId
+          ? "Client ID à enregistrer"
+          : "Client ID manquant";
+        const encOk =
+          !!serverState.encryption_ready && !!serverState.encryption_valid;
+        let encLabel = "Chiffrement manquant";
+        if (serverState.encryption_ready && !serverState.encryption_valid)
+          encLabel = "Chiffrement invalide";
+        if (encOk) encLabel = "Chiffrement ok";
+        const chip = (cls, txt) => `<span class="chip ${cls}">${txt}</span>`;
+        const connOk = serverState.spotify_connected === true;
+        const connLabel = connOk ? "Statut Connecté" : "Statut Déconnecté";
+        chips.innerHTML = [
+          chip(idOk ? "ok" : hasLocalId ? "warn" : "warn", idLabel),
+          chip(encOk ? "ok" : "warn", encLabel),
+          chip(connOk ? "ok" : "warn", connLabel),
+        ].join(" ");
+        const msgEl = document.getElementById("message");
+        if (!lastErrorMsg) {
+          if (!idOk && hasLocalId) {
+            msgSet(
+              "info",
+              "Cliquer sur Enregistrer pour appliquer le Client ID"
+            );
+          } else if (!idOk && !hasLocalId) {
+            msgSet("info", "Client ID manquant");
+          } else {
+            msgClear();
+          }
+        }
+        const canConnect = idOk && encOk;
+        const connectBtn = document.getElementById("connect");
+        const logoutBtn = document.getElementById("logout");
+        connectBtn.disabled = !canConnect;
+        // Affichage boutons selon connexion
+        const isConn = serverState.spotify_connected === true;
+        connectBtn.classList.toggle("hidden", isConn);
+        logoutBtn.classList.toggle("hidden", !isConn);
+      }
+
+      function renderState(data) {
+        serverState.client_id_set = !!data.client_id_set;
+        serverState.encryption_ready = !!data.encryption_ready;
+        serverState.encryption_valid =
+          typeof data.encryption_valid !== "undefined"
+            ? !!data.encryption_valid
+            : true;
+        serverState.spotify_connected =
+          typeof data.spotify_connected !== "undefined"
+            ? !!data.spotify_connected
+            : serverState.spotify_connected;
+        const red = document.getElementById("redirect_uri");
+        if (data.recommended_redirect_uri)
+          red.value = data.recommended_redirect_uri;
+        if (typeof data.client_id !== "undefined" && data.client_id) {
+          document.getElementById("client_id").value = data.client_id;
+        }
+        renderChips();
+      }
+
+      async function fetchSettings() {
+        try {
+          const res = await fetch(
+            `/${encodeURIComponent(uid)}/settings/spotify`,
+            { credentials: "include", cache: "no-store" }
+          );
+          let data = null;
+          try {
+            data = await res.json();
+          } catch (_) {}
+          if (res.ok && data && data.status === "success") {
+            if (data.username) {
+              titleEl.textContent = `Réglages - ${data.username}`;
+            }
+            if (data.uuid && uuidRe.test(data.uuid)) {
+              backBtn.href = `/${data.uuid}`;
+              backBtn.classList.remove("hidden");
+            }
+            renderState(data);
+          } else {
+            const msg =
+              (data && (data.error || data.message)) ||
+              (res.status === 401
+                ? "Non autorisé - connectez-vous."
+                : "Erreur de chargement des paramètres");
+            msgSet("error", msg);
+            // Garder au moins une Redirect URI utile
+            prefillRedirect();
+          }
+        } catch (e) {
+          msgSet("error", "Erreur de chargement des paramètres");
+        }
+      }
+      fetchSettings();
+
+      // ----- Affichage (couleur par défaut)
+      function parseHex(h) {
+        if (!h) return null;
+        h = h.trim().replace(/^#/, "");
+        if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+        return /^[0-9a-fA-F]{6}$/.test(h) ? "#" + h.toLowerCase() : null;
+      }
+      function msgSetDisplay(kind, text) {
+        const el = document.getElementById("message_display");
+        el.className = "msg " + (kind || "info");
+        el.textContent = text || "";
+        el.classList.toggle("hidden", !text);
+      }
+      function renderDisplay(data) {
+        const def = data && data.default_color ? data.default_color : null;
+        const val = parseHex(def) || "#53ac6a";
+        const inp = document.getElementById("default_color");
+        inp.value = val;
+        document.getElementById("color_label").textContent = val;
+        const prev = document.getElementById("color_preview");
+        prev.style.backgroundColor = val;
+      }
+
+      async function fetchDisplay() {
+        try {
+          const res = await fetch(
+            `/${encodeURIComponent(uid)}/settings/display`,
+            { credentials: "include", cache: "no-store" }
+          );
+          const data = await res.json().catch(() => null);
+          if (res.ok && data && data.status === "success") {
+            renderDisplay(data);
+            msgSetDisplay();
+          } else {
+            msgSetDisplay(
+              "error",
+              (data && (data.error || data.message)) ||
+                (res.status === 401 ? "Non autorisé" : "Erreur de chargement")
+            );
+          }
+        } catch (e) {
+          msgSetDisplay("error", "Erreur réseau");
+        }
+      }
+      fetchDisplay();
+
+      document
+        .getElementById("default_color")
+        .addEventListener("input", (e) => {
+          const hex = parseHex(e.target.value);
+          if (hex) {
+            document.getElementById("color_preview").style.backgroundColor =
+              hex;
+            document.getElementById("color_label").textContent = hex;
+            msgSetDisplay();
+          }
+        });
+      document.getElementById("save_display").onclick = async () => {
+        const raw = document.getElementById("default_color").value;
+        const hex = raw ? parseHex(raw) : null;
+        if (raw && !hex) {
+          msgSetDisplay("error", "Couleur invalide");
+          return;
+        }
+        try {
+          const res = await fetch(
+            `/${encodeURIComponent(uid)}/settings/display`,
+            {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ default_color: hex }),
+            }
+          );
+          const data = await res.json().catch(() => null);
+          if (res.ok && data && data.status === "success") {
+            renderDisplay(data);
+            msgSetDisplay("success", "Enregistré");
+          } else {
+            msgSetDisplay(
+              "error",
+              (data && (data.error || data.message)) || "Erreur"
+            );
+          }
+        } catch (e) {
+          msgSetDisplay("error", "Erreur réseau");
+        }
+      };
+      document.getElementById("clear_display").onclick = async () => {
+        try {
+          const res = await fetch(
+            `/${encodeURIComponent(uid)}/settings/display`,
+            {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ default_color: "" }),
+            }
+          );
+          const data = await res.json().catch(() => null);
+          if (res.ok && data && data.status === "success") {
+            renderDisplay({ default_color: null });
+            msgSetDisplay("success", "Supprimé");
+          } else {
+            msgSetDisplay(
+              "error",
+              (data && (data.error || data.message)) || "Erreur"
+            );
+          }
+        } catch (e) {
+          msgSetDisplay("error", "Erreur réseau");
+        }
+      };
+
+      // --------- Profil (username / email)
+      function msgSetProfile(kind, text) {
+        const el = document.getElementById("message_profile");
+        el.className = "msg " + (kind || "info");
+        el.textContent = text || "";
+        el.classList.toggle("hidden", !text);
+      }
+      function msgClearProfile() {
+        const el = document.getElementById("message_profile");
+        el.textContent = "";
+        el.className = "msg hidden";
+      }
+
+      async function fetchProfile() {
+        try {
+          const res = await fetch(
+            `/${encodeURIComponent(uid)}/settings/profile`,
+            { credentials: "include", cache: "no-store" }
+          );
+          let data = null;
+          try {
+            data = await res.json();
+          } catch (_) {}
+          if (res.ok && data && data.status === "success") {
+            if (data.username) {
+              titleEl.textContent = `Réglages - ${data.username}`;
+              document.getElementById("profile_username").value = data.username;
+            }
+            if (data.email) {
+              document.getElementById("profile_email").value = data.email;
+            }
+            msgClearProfile();
+          } else {
+            msgSetProfile(
+              "error",
+              (data && (data.error || data.message)) ||
+                (res.status === 401
+                  ? "Non autorisé - connectez-vous."
+                  : "Erreur de chargement du profil")
+            );
+          }
+        } catch (e) {
+          msgSetProfile("error", "Erreur de chargement du profil");
+        }
+      }
+      fetchProfile();
+
+      document.getElementById("save_profile").onclick = async () => {
+        const username = document
+          .getElementById("profile_username")
+          .value.trim();
+        const email = document.getElementById("profile_email").value.trim();
+        try {
+          const res = await fetch(
+            `/${encodeURIComponent(uid)}/settings/profile`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ username, email }),
+            }
+          );
+          let data = null;
+          try {
+            data = await res.json();
+          } catch (_) {}
+          if (res.ok && data && data.status === "success") {
+            msgSetProfile("success", "Profil mis à jour");
+            if (data.username)
+              titleEl.textContent = `Réglages - ${data.username}`;
+          } else {
+            msgSetProfile(
+              "error",
+              (data && (data.error || data.message)) ||
+                "Erreur lors de l'enregistrement"
+            );
+          }
+        } catch (e) {
+          msgSetProfile("error", "Erreur réseau");
+        }
+      };
+
+      // --------- Mot de passe
+      function msgSetPassword(kind, text) {
+        const el = document.getElementById("message_password");
+        el.className = "msg " + (kind || "info");
+        el.textContent = text || "";
+        el.classList.toggle("hidden", !text);
+      }
+      document.getElementById("save_password").onclick = async () => {
+        const current_password = document.getElementById("pwd_current").value;
+        const new_password = document.getElementById("pwd_new").value;
+        if (!current_password || !new_password) {
+          msgSetPassword("error", "Renseignez les deux champs");
+          return;
+        }
+        try {
+          const res = await fetch(
+            `/${encodeURIComponent(uid)}/settings/password`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ current_password, new_password }),
+            }
+          );
+          let data = null;
+          try {
+            data = await res.json();
+          } catch (_) {}
+          if (res.ok && data && data.status === "success") {
+            msgSetPassword("success", "Mot de passe mis à jour");
+            document.getElementById("pwd_current").value = "";
+            document.getElementById("pwd_new").value = "";
+          } else {
+            msgSetPassword(
+              "error",
+              (data && (data.error || data.message)) || "Erreur"
+            );
+          }
+        } catch (e) {
+          msgSetPassword("error", "Erreur réseau");
+        }
+      };
+
+      const onInput = () => {
+        lastErrorMsg = "";
+        renderChips();
+      };
+      document.getElementById("client_id").addEventListener("input", onInput);
+      document
+        .getElementById("client_secret")
+        .addEventListener("input", onInput);
+
+      document.getElementById("save").onclick = async () => {
+        const client_id = document.getElementById("client_id").value.trim();
+        const client_secret = document
+          .getElementById("client_secret")
+          .value.trim();
+        if (!client_id && !client_secret) {
+          document.getElementById("status").textContent =
+            "Fournir au moins Client ID ou Secret";
+          return;
+        }
+        let res, data, text;
+        try {
+          res = await fetch(`/${encodeURIComponent(uid)}/settings/spotify`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ client_id, client_secret }),
+          });
+          try {
+            data = await res.json();
+          } catch (e) {
+            data = null;
+            text = await res.text().catch(() => "");
+          }
+        } catch (e) {
+          document.getElementById("status").textContent = "Erreur réseau";
+          return;
+        }
+        if (res.ok && data && data.status === "success") {
+          lastErrorMsg = "";
+          msgSet("success", "Enregistré");
+          fetchSettings();
+        } else {
+          const msg =
+            data && (data.error || data.message)
+              ? data.error || data.message
+              : text || "Erreur";
+          lastErrorMsg = msg;
+          msgSet("error", msg);
+        }
+      };
+
+      document.getElementById("connect").onclick = async () => {
+        const res = await fetch(
+          `/${encodeURIComponent(uid)}/spotify/oauth-url`,
+          { credentials: "include" }
+        );
+        const data = await res.json();
+        if (data.status === "success" && data.auth_url) {
+          window.location.href = data.auth_url;
+        } else if (data && data.error) {
+          msgSet("error", data.error);
+        }
+      };
+
+      document.getElementById("logout").onclick = async () => {
+        await fetch(`/${encodeURIComponent(uid)}/spotify/logout`, {
+          method: "POST",
+          credentials: "include",
+        });
+        serverState.spotify_connected = false;
+        msgSet("success", "Déconnecté");
+        renderChips();
+      };
+
+      document.getElementById("copy_redirect").onclick = async () => {
+        const inp = document.getElementById("redirect_uri");
+        const btn = document.getElementById("copy_redirect");
+        const original = btn.textContent;
+        try {
+          await navigator.clipboard.writeText(inp.value);
+          btn.textContent = "Copié!";
+          btn.disabled = true;
+          setTimeout(() => {
+            btn.textContent = original;
+            btn.disabled = false;
+          }, 1200);
+        } catch (e) {
+          btn.textContent = "Échec";
+          setTimeout(() => {
+            btn.textContent = original;
+          }, 1200);
+        }
+      };
+
+      function msgSet(kind, text) {
+        const el = document.getElementById("message");
+        el.className = "msg " + (kind || "info");
+        el.textContent = text || "";
+        el.classList.toggle("hidden", !text);
+      }
+      function msgClear() {
+        const el = document.getElementById("message");
+        el.textContent = "";
+        el.className = "msg hidden";
+      }
+    </script>
+  </body>
+</html>

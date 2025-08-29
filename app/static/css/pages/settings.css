@@ -1,0 +1,95 @@
+/* Settings page */
+.container > h2 {
+  margin: 0 0 12px;
+}
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.card h3 {
+  margin: 0 0 8px;
+}
+.hint {
+  font-size: 12px;
+}
+
+/* Rows alignées */
+.card .row {
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Champ Redirect & bouton */
+#redirect_uri {
+  flex: 1 1 420px;
+}
+#copy_redirect {
+  white-space: nowrap;
+}
+#redirect_uri {
+  flex: 1 1 420px;
+}
+#copy_redirect {
+  white-space: nowrap;
+}
+.redirect-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+.redirect-row #redirect_uri {
+  width: 100%;
+  min-width: 0;
+}
+.redirect-row #copy_redirect {
+  justify-self: end;
+}
+
+/* Chips d'état */
+.status-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Color picker styling */
+#default_color[type="color"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 44px;
+  height: 36px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--line, #30363d);
+  background: #21262d;
+  cursor: pointer;
+}
+#default_color[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 4px;
+}
+#default_color[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 6px;
+}
+#default_color[type="color"]::-moz-color-swatch {
+  border: none;
+  border-radius: 6px;
+}
+#default_color[type="color"]:hover {
+  border-color: var(--line, #3d444d);
+  background: #30363d;
+}
+#default_color[type="color"]:focus {
+  outline: 2px solid var(--accent, #2f81f7);
+  outline-offset: 2px;
+}
+#color_label {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  font-size: 13px;
+}
