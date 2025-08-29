@@ -398,7 +398,6 @@
           const d = url.searchParams.get("default");
           const q = d ? `?default=${encodeURIComponent(d)}` : "";
           this.apiInfos = `/${ref}/infos${q}`;
-          this.apiColor = `/${ref}/color${q}`;
           this.updateInterval = 1000;
           this.isVisible = false;
           this.currentTrackId = null;
@@ -439,17 +438,10 @@
         }
 
         async fetchData() {
-          const [ri, rc] = await Promise.all([
-            fetch(this.apiInfos, { cache: "no-store" }),
-            fetch(this.apiColor, { cache: "no-store" }),
-          ]);
+          const ri = await fetch(this.apiInfos, { cache: "no-store" });
           if (!ri.ok) throw new Error("HTTP " + ri.status);
           const ji = await ri.json();
-          let colorHex = null;
-          try {
-            const jc = await rc.json();
-            colorHex = jc?.color?.hex || null;
-          } catch (_) {}
+          const colorHex = ji?.color?.hex || null;
           return { track: ji.track, colorHex };
         }
 

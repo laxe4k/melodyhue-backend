@@ -260,9 +260,8 @@ Important
 - Public/ généraux
   - GET `/` — Landing page
   - GET `/health` — Santé + stats
-  - GET `/color` — Couleur dominante (global)
-  - GET `/infos` — Infos piste + couleur (global)
   - GET `/debug/track` — Debug
+  - Note: les routes globales `/color` et `/infos` ont été supprimées. Utilisez les routes par utilisateur: `/<username|uuid>/infos` (inclut déjà la couleur) et `/<username|uuid>/color` (plein écran/usage spécifique).
 
 - Pages (UI)
   - GET `/login` — Page de connexion
@@ -274,21 +273,14 @@ Important
   - POST `/api/auth/signup` (alias: `/api/auth/register`)
   - POST `/logout`
 
-- Spotify (instance globale)
-  - GET `/settings/spotify` — Lire l’état/config globale
-  - POST `/settings/spotify` — Enregistrer client_id/secret (global)
-  - GET `/spotify/oauth-url` — URL d’auth globale
-  - GET `/spotify/callback` — Callback OAuth globale
-  - POST `/spotify/logout` — Déconnexion globale
-
 - Spotify / Couleurs par utilisateur
   - GET `/<username>/color` — Couleur (supporte `?default=<hex|db|auto>`)
   - GET `/<uuid:user_uuid>/color`
   - GET `/<username>/infos` — Détails piste + couleur
   - GET `/<uuid:user_uuid>/infos`
-  - GET `/u/<username>/nowplaying` — Page Now Playing
+  - GET `/<username>/nowplaying` — Page Now Playing
   - GET `/<uuid:user_uuid>/nowplaying` — Page Now Playing (UUID)
-  - GET `/<username>/nowplaying.json` — Now Playing (JSON)
+  - GET `/<username>/color-fullscreen` — Vue plein écran de la couleur
   - GET `/<uuid:user_uuid>/color-fullscreen` — Vue plein écran de la couleur
 
 - OAuth Spotify par utilisateur

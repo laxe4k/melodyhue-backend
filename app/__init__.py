@@ -93,15 +93,6 @@ def create_app() -> Flask:
     # Cache extracteurs par utilisateur
     app.extensions["user_extractors"] = {}
 
-    # Log d'accueil
-    print("🎵 SPOTIFY COLOR API - VERSION FLASK")
-    print("=====================================")
-    print("📁 Architecture: Flask + Blueprints")
-    print(f"📡 Port: {os.getenv('PORT', 8765)}")
-    print("🎨 Style: FLASHY - Couleurs vives et saturées")
-    print("🎯 Endpoints: /color, /infos, /health, /debug/track")
-    print("=====================================")
-
     # Enregistrer les blueprints par domaine
     from .controllers.pages_controller import bp as pages_bp
     from .controllers.spotify_controller import bp as spotify_bp
