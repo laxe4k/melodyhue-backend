@@ -1,12 +1,12 @@
-# Spotify Info & Color API (Flask)
+# Spotify Color API
 
-[![GitHub Release](https://img.shields.io/github/v/release/laxe4k/spotify-info-color-api)](https://github.com/laxe4k/spotify-info-color-api/releases)
-[![GitHub Release Date](https://img.shields.io/github/release-date/laxe4k/spotify-info-color-api)](https://github.com/laxe4k/spotify-info-color-api/releases)
-[![GitHub License](https://img.shields.io/github/license/laxe4k/spotify-info-color-api)](https://github.com/laxe4k/spotify-info-color-api/blob/main/LICENSE)
-[![GitHub contributors](https://img.shields.io/github/contributors/laxe4k/spotify-info-color-api)](https://github.com/laxe4k/spotify-info-color-api/graphs/contributors)
-[![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-ghcr.io-blue)](https://github.com/laxe4k/spotify-info-color-api/pkgs/container/spotify-info-color-api)
-[![GitHub Issues](https://img.shields.io/github/issues/laxe4k/spotify-info-color-api)](https://github.com/laxe4k/spotify-info-color-api/issues)
-[![CI/CD - Docker](https://github.com/laxe4k/spotify-info-color-api/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/laxe4k/spotify-info-color-api/actions/workflows/ci-cd.yml)
+[![GitHub Release](https://img.shields.io/github/v/release/laxe4k/spotify-color-api)](https://github.com/laxe4k/spotify-color-api/releases)
+[![GitHub Release Date](https://img.shields.io/github/release-date/laxe4k/spotify-color-api)](https://github.com/laxe4k/spotify-color-api/releases)
+[![GitHub License](https://img.shields.io/github/license/laxe4k/spotify-color-api)](https://github.com/laxe4k/spotify-color-api/blob/main/LICENSE)
+[![GitHub contributors](https://img.shields.io/github/contributors/laxe4k/spotify-color-api)](https://github.com/laxe4k/spotify-color-api/graphs/contributors)
+[![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-ghcr.io-blue)](https://github.com/laxe4k/spotify-color-api/pkgs/container/spotify-color-api)
+[![GitHub Issues](https://img.shields.io/github/issues/laxe4k/spotify-color-api)](https://github.com/laxe4k/spotify-color-api/issues)
+[![CI/CD - Docker](https://github.com/laxe4k/spotify-color-api/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/laxe4k/spotify-color-api/actions/workflows/ci-cd.yml)
 
 API Flask avec UI qui affiche la musique Spotify en cours et extrait une couleur dominante « naturelle mais punchy » depuis la pochette.
 Support multi‑utilisateurs (comptes), OAuth Spotify par utilisateur, tokens chiffrés, endpoints JSON simples et déploiement Docker.
@@ -16,7 +16,7 @@ Support multi‑utilisateurs (comptes), OAuth Spotify par utilisateur, tokens ch
 ## 🏗️ Structure
 
 ```
-spotify-info-color-api/
+spotify-color-api/
 ├─ run.py                                     # Entrypoint Flask (HOST/PORT/FLASK_DEBUG via .env)
 ├─ app/
 │  ├─ __init__.py                             # App factory, config, enregistrement des blueprints
@@ -157,8 +157,8 @@ python run.py
 
 ```yaml
 services:
-  spotify-info-color-api:
-    image: ghcr.io/laxe4k/spotify-info-color-api:latest
+  spotify-color-api:
+    image: ghcr.io/laxe4k/spotify-color-api:latest
     container_name: spotify_info_color_api
     ports:
       - "${PORT}:${PORT}"
@@ -326,9 +326,9 @@ Ce projet est distribué sous licence **MIT** - voir [LICENSE](LICENSE) pour les
 ## ⚡ Contribuer
 
 ### Comment contribuer
-- **Issues** : Signalez des bugs ou proposez des améliorations via [GitHub Issues](https://github.com/laxe4k/spotify-info-color-api/issues)
+- **Issues** : Signalez des bugs ou proposez des améliorations via [GitHub Issues](https://github.com/laxe4k/spotify-color-api/issues)
 - **Pull Requests** : Fork le projet, créez une branche feature, et soumettez vos modifications
-- **Discussions** : Partagez vos idées dans les [GitHub Discussions](https://github.com/laxe4k/spotify-info-color-api/discussions)
+- **Discussions** : Partagez vos idées dans les [GitHub Discussions](https://github.com/laxe4k/spotify-color-api/discussions)
 
 ### Idées d'améliorations
 - Algorithmes de couleur alternatifs (palette complète, couleurs complémentaires)

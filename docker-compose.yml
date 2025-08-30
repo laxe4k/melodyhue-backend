@@ -1,6 +1,6 @@
 services:
-  spotify-info-color-api:
-    image: ghcr.io/laxe4k/spotify-info-color-api:latest
+  spotify-color-api:
+    image: ghcr.io/laxe4k/spotify-color-api:latest
     container_name: spotify_info_color_api
     ports:
       - "${PORT}:${PORT}"

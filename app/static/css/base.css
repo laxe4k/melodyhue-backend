@@ -484,3 +484,22 @@ a:focus {
   box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.35);
   border-color: #58a6ff;
 }
+
+/* Footer */
+.site-footer {
+  position: sticky;
+  top: 100vh; /* pousse le footer en bas de page */
+  width: 100%;
+  border-top: 1px solid var(--line);
+  background: #0e1116;
+}
+.site-footer .wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  justify-content: center;
+}
+.site-footer .sep {
+  color: var(--line);
+}
