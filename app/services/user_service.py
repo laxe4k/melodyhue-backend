@@ -81,13 +81,15 @@ class UserService:
         user = self.get_user(username)
         if not user:
             return False
-        user.spotify_refresh_token = refresh_token
+        # Chiffrer le refresh token avant stockage (None reste None)
+        user.spotify_refresh_token = encrypt_str(refresh_token)
         db.session.commit()
         return True
 
     def get_refresh_token(self, username: str) -> Optional[str]:
         u = self.get_user(username)
-        return u.spotify_refresh_token if u else None
+        # Déchiffrer si préfixé enc:, sinon retourne la valeur legacy en clair
+        return decrypt_str(u.spotify_refresh_token) if u else None
 
     # Préférences: couleur par défaut (format '#rrggbb')
     def set_default_color(self, username: str, color_hex: Optional[str]) -> bool:

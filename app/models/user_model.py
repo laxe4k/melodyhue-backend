@@ -24,7 +24,7 @@ class User(db.Model):
     # Credentials Spotify propres à l’utilisateur
     spotify_client_id = db.Column(db.String(255))
     spotify_client_secret = db.Column(db.String(255))
-    spotify_refresh_token = db.Column(db.String(512))
+    spotify_refresh_token = db.Column(db.String(1024))
 
     # Préférences d'affichage
     default_color_hex = db.Column(db.String(7))  # format normalisé '#rrggbb'
