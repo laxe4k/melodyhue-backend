@@ -5,6 +5,7 @@ Initialisation de l'application Flask (factory)
 
 import logging
 import os
+from datetime import datetime
 from urllib.parse import quote_plus as urlquote
 
 from dotenv import load_dotenv
@@ -15,6 +16,11 @@ import wtforms_json
 
 # Imports locaux
 from .services import SpotifyColorExtractor
+from .services.github_version_service import (
+    get_latest_release_version,
+    get_repo_created_year,
+    get_repo_owner_login,
+)
 
 
 def create_app() -> Flask:
@@ -41,6 +47,18 @@ def create_app() -> Flask:
 
     # Config
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-key")
+    # Version de l'application (affichée dans le footer)
+    # Version affichée dans l'UI: par défaut release GitHub; fallback env/valeur dev
+    gh_version = get_latest_release_version() or None
+    env_version = os.getenv("APP_VERSION") or os.getenv("VERSION")
+    app.config["APP_VERSION"] = gh_version or env_version or "0.0.0-dev"
+    # Année de création du dépôt pour le © (fallback: année courante si non dispo)
+    created_year = get_repo_created_year() or None
+    app.config["CREATED_YEAR"] = created_year
+    # Propriétaire du repo (pour ©)
+    app.config["REPO_OWNER"] = (
+        get_repo_owner_login() or os.getenv("REPO_OWNER") or "Laxe4k"
+    )
     # Forcer la sortie JSON en UTF-8 (ne pas échapper les accents)
     app.config["JSON_AS_ASCII"] = False
     try:
@@ -103,5 +121,15 @@ def create_app() -> Flask:
     app.register_blueprint(spotify_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(user_bp)
+
+    # Rendre la version et l'année courante disponibles dans tous les templates
+    @app.context_processor
+    def inject_globals():  # noqa: D401
+        return {
+            "APP_VERSION": app.config.get("APP_VERSION", "0.0.0-dev"),
+            "CURRENT_YEAR": datetime.utcnow().year,
+            "CREATED_YEAR": app.config.get("CREATED_YEAR") or datetime.utcnow().year,
+            "REPO_OWNER": app.config.get("REPO_OWNER", "Laxe4k"),
+        }
 
     return app
