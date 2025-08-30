@@ -159,7 +159,7 @@ python run.py
 services:
   spotify-color-api:
     image: ghcr.io/laxe4k/spotify-color-api:latest
-    container_name: spotify_info_color_api
+    container_name: spotify-color-api
     ports:
       - "${PORT}:${PORT}"
     environment:
