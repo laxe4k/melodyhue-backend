@@ -6,6 +6,7 @@
 [![GitHub contributors](https://img.shields.io/github/contributors/laxe4k/spotify-info-color-api)](https://github.com/laxe4k/spotify-info-color-api/graphs/contributors)
 [![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-ghcr.io-blue)](https://github.com/laxe4k/spotify-info-color-api/pkgs/container/spotify-info-color-api)
 [![GitHub Issues](https://img.shields.io/github/issues/laxe4k/spotify-info-color-api)](https://github.com/laxe4k/spotify-info-color-api/issues)
+[![CI/CD - Docker](https://github.com/laxe4k/spotify-info-color-api/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/laxe4k/spotify-info-color-api/actions/workflows/ci-cd.yml)
 
 API Flask avec UI qui affiche la musique Spotify en cours et extrait une couleur dominante « naturelle mais punchy » depuis la pochette.
 Support multi‑utilisateurs (comptes), OAuth Spotify par utilisateur, tokens chiffrés, endpoints JSON simples et déploiement Docker.
