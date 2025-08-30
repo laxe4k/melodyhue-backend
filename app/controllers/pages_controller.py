@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import re
 from flask import Blueprint, render_template, session, current_app, redirect, url_for
+from flask import Response, send_from_directory
 from app.models.user_model import User
 from app.services.user_service import UserService
 
@@ -10,6 +11,21 @@ bp = Blueprint("pages", __name__)
 @bp.route("/", methods=["GET"])
 def index():
     return render_template("index.html")
+
+
+@bp.route("/favicon.ico")
+def favicon():
+    # Essayer de servir un favicon.ico depuis static root si présent
+    try:
+        return send_from_directory(
+            directory=current_app.static_folder,
+            path="favicon.ico",
+            mimetype="image/x-icon",
+        )
+    except Exception:
+        # Sinon renvoyer l'icône SVG par défaut
+        svg_url = url_for("static", filename="favicon.svg")
+        return redirect(svg_url, code=302)
 
 
 @bp.route("/<username>/settings", methods=["GET"])
