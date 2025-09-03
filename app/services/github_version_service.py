@@ -3,7 +3,7 @@
 Service utilitaire pour récupérer la version depuis les releases GitHub
 et l'année de création du dépôt.
 
-Par défaut, utilise le repo 'laxe4k/spotify-color-api' mais peut être
+Par défaut, utilise le repo 'laxe4k/nowplaying-color-api' mais peut être
 surchargé via la variable d'environnement GITHUB_REPO (format: owner/repo).
 """
 
@@ -20,7 +20,7 @@ GITHUB_API_BASE = "https://api.github.com"
 
 
 def _repo_slug() -> str:
-    return os.getenv("GITHUB_REPO", "laxe4k/spotify-color-api")
+    return os.getenv("GITHUB_REPO", "laxe4k/nowplaying-color-api")
 
 
 def get_latest_release_version(timeout: float = 2.5) -> Optional[str]:
@@ -33,7 +33,7 @@ def get_latest_release_version(timeout: float = 2.5) -> Optional[str]:
     url = f"{GITHUB_API_BASE}/repos/{owner_repo}/releases/latest"
     headers = {
         "Accept": "application/vnd.github+json",
-        "User-Agent": "spotify-color-api/1.0",
+        "User-Agent": "nowplaying-color-api/1.0",
     }
     try:
         r = requests.get(url, headers=headers, timeout=timeout)
@@ -60,7 +60,7 @@ def get_repo_created_year(timeout: float = 2.5) -> Optional[int]:
     url = f"{GITHUB_API_BASE}/repos/{owner_repo}"
     headers = {
         "Accept": "application/vnd.github+json",
-        "User-Agent": "spotify-color-api/1.0",
+        "User-Agent": "nowplaying-color-api/1.0",
     }
     try:
         r = requests.get(url, headers=headers, timeout=timeout)
@@ -89,7 +89,7 @@ def get_repo_owner_login(timeout: float = 2.5) -> Optional[str]:
     url = f"{GITHUB_API_BASE}/repos/{owner_repo}"
     headers = {
         "Accept": "application/vnd.github+json",
-        "User-Agent": "spotify-color-api/1.0",
+        "User-Agent": "nowplaying-color-api/1.0",
     }
     try:
         r = requests.get(url, headers=headers, timeout=timeout)

@@ -8,6 +8,8 @@ from sqlalchemy import func
 from argon2.exceptions import VerifyMismatchError
 from ..extensions import db, password_hasher
 from ..models.user_model import User
+from ..models.spotify_credential_model import SpotifyCredential
+from ..models.tidal_credential_model import TidalCredential
 from ..security.crypto import encrypt_str, decrypt_str
 
 
@@ -55,16 +57,20 @@ class UserService:
     def get_user_by_uuid(self, user_uuid: str) -> Optional[User]:
         return User.query.filter_by(uuid=user_uuid).first()
 
-    # Credentials Spotify par utilisateur
+    # Credentials Spotify par utilisateur (table dédiée)
     def set_spotify_credentials(
         self, username: str, client_id: str, client_secret: str
     ) -> bool:
         user = self.get_user(username)
         if not user:
             return False
-        user.spotify_client_id = client_id
+        cred = SpotifyCredential.query.filter_by(user_id=user.internal_id).first()
+        if not cred:
+            cred = SpotifyCredential(user_id=user.internal_id)
+            db.session.add(cred)
+        cred.client_id = client_id
         # Chiffrer le secret avant stockage
-        user.spotify_client_secret = encrypt_str(client_secret)
+        cred.client_secret = encrypt_str(client_secret)
         db.session.commit()
         return True
 
@@ -74,22 +80,32 @@ class UserService:
         user = self.get_user(username)
         if not user:
             return (None, None)
+        cred = SpotifyCredential.query.filter_by(user_id=user.internal_id).first()
+        if not cred:
+            return (None, None)
         # Déchiffrer si préfixé enc:
-        return (user.spotify_client_id, decrypt_str(user.spotify_client_secret))
+        return (cred.client_id, decrypt_str(cred.client_secret))
 
     def set_refresh_token(self, username: str, refresh_token: Optional[str]) -> bool:
         user = self.get_user(username)
         if not user:
             return False
+        cred = SpotifyCredential.query.filter_by(user_id=user.internal_id).first()
+        if not cred:
+            cred = SpotifyCredential(user_id=user.internal_id)
+            db.session.add(cred)
         # Chiffrer le refresh token avant stockage (None reste None)
-        user.spotify_refresh_token = encrypt_str(refresh_token)
+        cred.refresh_token = encrypt_str(refresh_token)
         db.session.commit()
         return True
 
     def get_refresh_token(self, username: str) -> Optional[str]:
         u = self.get_user(username)
+        if not u:
+            return None
+        cred = SpotifyCredential.query.filter_by(user_id=u.internal_id).first()
         # Déchiffrer si préfixé enc:, sinon retourne la valeur legacy en clair
-        return decrypt_str(u.spotify_refresh_token) if u else None
+        return decrypt_str(cred.refresh_token) if cred else None
 
     # Préférences: couleur par défaut (format '#rrggbb')
     def set_default_color(self, username: str, color_hex: Optional[str]) -> bool:
@@ -111,6 +127,78 @@ class UserService:
     def get_default_color(self, username: str) -> Optional[str]:
         u = self.get_user(username)
         return u.default_color_hex if u else None
+
+    # Plateforme préférée
+    def set_music_platform(self, username: str, platform: str) -> bool:
+        u = self.get_user(username)
+        if not u:
+            return False
+        platform = (platform or "").strip().lower()
+        if platform not in ("spotify", "tidal"):
+            return False
+        u.music_platform = platform
+        db.session.commit()
+        return True
+
+    def get_music_platform(self, username: str) -> Optional[str]:
+        u = self.get_user(username)
+        if not u:
+            return None
+        return (u.music_platform or "spotify").lower()
+
+    # --- Tidal: gestion des tokens OAuth par utilisateur ---
+    def set_tidal_tokens(
+        self,
+        username: str,
+        token_type: str,
+        access_token: str,
+        refresh_token: str,
+        expiry_time,
+    ) -> bool:
+        user = self.get_user(username)
+        if not user:
+            return False
+        cred = TidalCredential.query.filter_by(user_id=user.internal_id).first()
+        if not cred:
+            cred = TidalCredential(user_id=user.internal_id)
+        cred.token_type = token_type
+        cred.access_token = encrypt_str(access_token) if access_token else None
+        cred.refresh_token = encrypt_str(refresh_token) if refresh_token else None
+        # expiry_time est un datetime ou None
+        cred.expiry_time = expiry_time
+        db.session.add(cred)
+        db.session.commit()
+        return True
+
+    def get_tidal_tokens(
+        self, username: str
+    ) -> Optional[tuple[Optional[str], Optional[str], Optional[str], Optional[object]]]:
+        user = self.get_user(username)
+        if not user:
+            return None
+        cred = TidalCredential.query.filter_by(user_id=user.internal_id).first()
+        if not cred:
+            return None
+        return (
+            cred.token_type,
+            decrypt_str(cred.access_token) if cred.access_token else None,
+            decrypt_str(cred.refresh_token) if cred.refresh_token else None,
+            cred.expiry_time,
+        )
+
+    def clear_tidal_tokens(self, username: str) -> bool:
+        user = self.get_user(username)
+        if not user:
+            return False
+        cred = TidalCredential.query.filter_by(user_id=user.internal_id).first()
+        if not cred:
+            return True
+        cred.access_token = None
+        cred.refresh_token = None
+        cred.token_type = None
+        cred.expiry_time = None
+        db.session.commit()
+        return True
 
     # Profil: mise à jour username / email
     def update_profile(

@@ -11,27 +11,38 @@ from ..extensions import db
 class User(db.Model):
     __tablename__ = "users"
 
+    # Nouvel identifiant interne auto-incrémenté (PK)
+    internal_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+
+    # UUID stable et unique (non-PK)
     uuid = db.Column(
         db.String(36),
-        primary_key=True,
         nullable=False,
+        unique=True,
         default=lambda: str(uuid4()),
     )
+
     username = db.Column(db.String(80), unique=True, nullable=False, index=True)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
 
-    # Credentials Spotify propres à l’utilisateur
-    spotify_client_id = db.Column(db.String(255))
-    spotify_client_secret = db.Column(db.String(255))
-    spotify_refresh_token = db.Column(db.String(1024))
-
     # Préférences d'affichage
     default_color_hex = db.Column(db.String(7))  # format normalisé '#rrggbb'
+
+    # Plateforme musicale choisie par l'utilisateur: 'spotify' (défaut) ou 'tidal'
+    music_platform = db.Column(db.String(20), nullable=True, default="spotify")
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    # Relation 1-1 vers les identifiants Spotify (table séparée)
+    spotify_credential = db.relationship(
+        "SpotifyCredential",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
     )
 
     def __repr__(self) -> str:
