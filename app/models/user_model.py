@@ -29,6 +29,9 @@ class User(db.Model):
     # Préférences d'affichage
     default_color_hex = db.Column(db.String(7))  # format normalisé '#rrggbb'
 
+    # Plateforme musicale choisie par l'utilisateur: 'spotify' (défaut) ou 'tidal'
+    music_platform = db.Column(db.String(20), nullable=True, default="spotify")
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
