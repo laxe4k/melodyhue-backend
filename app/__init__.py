@@ -100,6 +100,7 @@ def create_app() -> Flask:
     try:
         from .models import user_model  # noqa: F401
         from .models import spotify_credential_model  # noqa: F401
+        from .models import tidal_credential_model  # noqa: F401
     except Exception as e:
         logging.warning(f"Impossible d'importer les modèles lors de l'init: {e}")
 
