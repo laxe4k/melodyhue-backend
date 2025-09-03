@@ -17,7 +17,7 @@ def health_check():
     extractor = _extractor()
     response = {
         "status": "healthy",
-        "service": "spotify-color-api-flask",
+        "service": "nowplaying-color-api-flask",
         "stats": extractor.get_stats() if extractor else {},
         "timestamp": int(time.time()),
     }
