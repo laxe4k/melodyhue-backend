@@ -1,4 +1,4 @@
-# Spotify Color API
+# NowPlaying Color API
 
 [![GitHub Release](https://img.shields.io/github/v/release/laxe4k/spotify-color-api)](https://github.com/laxe4k/spotify-color-api/releases)
 [![GitHub Release Date](https://img.shields.io/github/release-date/laxe4k/spotify-color-api)](https://github.com/laxe4k/spotify-color-api/releases)
@@ -16,7 +16,7 @@ Support multi‑utilisateurs (comptes), OAuth Spotify par utilisateur, tokens ch
 ## 🏗️ Structure
 
 ```
-spotify-color-api/
+nowplaying-color-api/
 ├─ run.py                                     # Entrypoint Flask (HOST/PORT/FLASK_DEBUG via .env)
 ├─ app/
 │  ├─ __init__.py                             # App factory, config, enregistrement des blueprints
