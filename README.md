@@ -80,6 +80,28 @@ python run.py
 
 ---
 
+## 🗃️ Migrations base de données
+
+Avant d’utiliser l’API, appliquez les migrations Alembic (Flask‑Migrate) pour synchroniser le schéma avec les modèles.
+
+- Windows (PowerShell)
+  ```powershell
+  $env:FLASK_APP = 'app:create_app'
+  .\.venv\Scripts\python.exe -m flask db upgrade heads
+  ```
+
+- Linux/macOS (bash)
+  ```bash
+  export FLASK_APP=app:create_app
+  python -m flask db upgrade heads
+  ```
+
+Notes
+- Si Alembic affiche « Multiple head revisions… », utilisez la cible `heads` comme ci‑dessus ou listez les têtes avec `flask db heads`.
+- Vous pouvez exécuter l’upgrade pendant que le serveur de dev tourne, puis recharger la page. En production, appliquez les migrations pendant une fenêtre de maintenance.
+
+---
+
 ### Variables d’environnement (.env commun)
 
 Ces variables sont utilisées à la fois en exécution locale et avec Docker Compose.
@@ -333,7 +355,7 @@ Ce projet est distribué sous licence **MIT** - voir [LICENSE](LICENSE) pour les
 ### Idées d'améliorations
 - Algorithmes de couleur alternatifs (palette complète, couleurs complémentaires)
 - Webhooks pour notifier les changements de piste
-- Support d'autres plateformes musicales (Apple Music, Deezer, Tidal)
+- Support d'autres plateformes musicales (Apple Music, Deezer)
 - Interface d'administration avancée
 - Métriques et analytics de l'API
 
