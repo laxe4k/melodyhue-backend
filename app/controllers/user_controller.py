@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 import os
 import time
 from flask import (
@@ -16,12 +16,6 @@ from app.services.user_service import UserService
 from app.models.user_model import User
 import re
 from app.services import SpotifyColorExtractor
-try:
-    from app.services.tidal_color_extractor_service import TidalColorExtractor
-    from app.services.tidal_client_service import TidalClient
-except Exception:  # tidalapi non installÃ© ou autre erreur d'import
-    TidalColorExtractor = None  # type: ignore
-    TidalClient = None  # type: ignore
 from urllib.parse import urlunsplit
 
 bp = Blueprint("user", __name__)
@@ -40,12 +34,12 @@ def _user_service():
 
 
 def _external_base_url():
-    """Construit l'URL publique de base (schÃ©ma + hÃ´te + port) en privilÃ©giant:
+    """Construit l'URL publique de base (schéma + hôte + port) en privilégiant:
     1. PUBLIC_BASE_URL (env), p.ex. https://api.example.com
-    2. En-tÃªtes proxy (X-Forwarded-Proto/Host/Port)
+    2. En-têtes proxy (X-Forwarded-Proto/Host/Port)
     3. request.host_url (fallback)
 
-    Renvoie une chaÃ®ne sans slash final.
+    Renvoie une chaîne sans slash final.
     """
     try:
         # 1) Forcer via variable d'env si fournie
@@ -93,10 +87,10 @@ def _external_base_url():
 
 
 def _resolve_user(ref: str) -> User | None:
-    """RÃ©sout un utilisateur Ã  partir d'un username ou d'un UUID.
+    """Résout un utilisateur à partir d'un username ou d'un UUID.
 
-    PrioritÃ© Ã  la recherche par UUID si `ref` a le format d'un UUID, sinon par username.
-    Permet de supporter les routes oÃ¹ un UUID peut matcher un <username>.
+    Priorité à la recherche par UUID si `ref` a le format d'un UUID, sinon par username.
+    Permet de supporter les routes où un UUID peut matcher un <username>.
     """
     us = _user_service()
     try:
@@ -104,7 +98,7 @@ def _resolve_user(ref: str) -> User | None:
             u = User.query.filter_by(uuid=ref).first()
             if u:
                 return u
-        # Fallback: recherche par username (insensible Ã  la casse)
+        # Fallback: recherche par username (insensible à la casse)
         return us.get_user_insensitive(ref)
     except Exception:
         # Fallback ultime, aucune exception ne doit casser l'appelant
@@ -114,7 +108,7 @@ def _resolve_user(ref: str) -> User | None:
 def _user_extractor(ref: str) -> SpotifyColorExtractor:
     """Retourne l'extracteur Spotify pour un utilisateur.
 
-    Si des credentials par utilisateur sont configurÃ©s en base, on crÃ©e/cache un extracteur dÃ©diÃ©.
+    Si des credentials par utilisateur sont configurs en base, on cre/cache un extracteur ddi.
     Sinon, on retombe sur l'extracteur global (configurable via /settings/spotify ou variables d'env).
     """
     cache = current_app.extensions.get("user_extractors") or {}
@@ -129,7 +123,7 @@ def _user_extractor(ref: str) -> SpotifyColorExtractor:
     refresh = us.get_refresh_token(username)
 
     if cid and csec:
-        # CrÃ©er un extracteur isolÃ© pour l'utilisateur avec ses credentials
+        # Crer un extracteur isol pour l'utilisateur avec ses credentials
         extractor = SpotifyColorExtractor()
         redirect_ref = u.uuid if u else username
         extractor.spotify_client.redirect_uri = (
@@ -137,7 +131,7 @@ def _user_extractor(ref: str) -> SpotifyColorExtractor:
         )
         extractor.spotify_client.configure_spotify_api(cid, csec, refresh_token=refresh)
 
-        # Persistance automatique du refresh_token lorsqu'il est renouvelÃ© par Spotify
+        # Persistance automatique du refresh_token lorsqu'il est renouvel par Spotify
         def _persist_rt(rt: str, _owner=username):
             try:
                 _user_service().set_refresh_token(_owner, rt)
@@ -147,36 +141,10 @@ def _user_extractor(ref: str) -> SpotifyColorExtractor:
         extractor.spotify_client.on_refresh_token = _persist_rt
         cache[ref] = extractor
         current_app.extensions["user_extractors"] = cache
-    return extractor
+        return extractor
 
-
-def _user_extractor_tidal(ref: str) -> TidalColorExtractor:
-    """Retourne l'extracteur Tidal pour un utilisateur (par ref username/uuid).
-
-    L'extracteur Tidal n'utilise pas de Client ID/Secret; l'auth se fait via
-    code appareil et les tokens sont conservÃ©s en base.
-    """
-    cache = current_app.extensions.get("user_extractors") or {}
-    cache_key = f"tidal:{ref}"
-    if cache_key in cache:
-        return cache[cache_key]
-    if TidalColorExtractor is None:
-        raise RuntimeError("Tidal non disponible: installez 'tidalapi'.")
-    extractor = TidalColorExtractor()
-    cache[cache_key] = extractor
-    current_app.extensions["user_extractors"] = cache
-    return extractor
-
-    # Pas de credentials utilisateur â†’ fallback extracteur global
-    global_extractor = _extractor()
-    if global_extractor is None:
-        # En thÃ©orie toujours prÃ©sent; par sÃ»retÃ©, crÃ©er un extracteur vierge
-        global_extractor = SpotifyColorExtractor()
-        current_app.extensions["extractor"] = global_extractor
-    # MÃ©moriser ce fallback pour Ã©viter des crÃ©ations inutiles
-    cache[ref] = global_extractor
-    current_app.extensions["user_extractors"] = cache
-    return global_extractor
+    # Fallback: no user credentials -> use global extractor
+    return _extractor()
 
 
 def _session_username() -> str | None:
@@ -197,7 +165,7 @@ def _norm(s: str | None) -> str:
 
 @bp.route("/<username>/", methods=["GET"])
 def user_root(username: str):
-    # PrivÃ©: accÃ¨s au propriÃ©taire uniquement
+    # Priv: acc¨s au propritaire uniquement
     if _session_username() != username:
         return jsonify({"status": "error", "error": "Unauthorized"}), 401
     return jsonify(
@@ -217,7 +185,7 @@ def user_root_uuid(user_uuid: str):
     u = _resolve_user(user_uuid)
     if not u:
         return jsonify({"status": "error", "error": "Utilisateur introuvable"}), 404
-    # PrivÃ©: page profil rÃ©servÃ©e au propriÃ©taire
+    # Priv: page profil rserve au propritaire
     if _session_username() != u.username:
         return redirect(url_for("pages.login_page"))
     return render_template("user.html", username=u.username, user_uuid=u.uuid)
@@ -227,19 +195,13 @@ def user_root_uuid(user_uuid: str):
 def user_fullcolor(username: str):
     start = time.perf_counter()
     ts = int(time.time())
-    # Provider optionnel: ?provider=spotify|tidal ; sinon, défaut DB
-    provider = (request.args.get("provider") or "").lower()
-    if not provider:
-        pref = _user_service().get_music_platform(owner)
-        provider = (pref or "spotify").lower()
-    is_tidal = provider == "tidal"
-    extractor = _user_extractor_tidal(username) if is_tidal else _user_extractor(username)
-    # RÃ©soudre le vrai propriÃ©taire (corrige la casse Ã©ventuelle)
+    extractor = _user_extractor(username)
+    # Rsoudre le vrai propritaire (corrige la casse ventuelle)
     _u = _resolve_user(username)
     owner = _u.username if _u else username
-    # ParamÃ¨tre de couleur par dÃ©faut (ex: ?default=ff00ff ou ?default=#ff00ff)
+    # Param¨tre de couleur par dfaut (ex: ?default=ff00ff ou ?default=#ff00ff)
     raw_default = (request.args.get("default") or "").strip()
-    # Si 'db'/'auto' demandÃ©, ignorer la query pour forcer la valeur DB
+    # Si 'db'/'auto' demand, ignorer la query pour forcer la valeur DB
     def_hex = "" if raw_default.lower() in ("db", "auto", "use-db") else raw_default
     # Fallback DB si pas fourni OU si la valeur n'est pas un hex valide
     def_from_db = False
@@ -262,7 +224,7 @@ def user_fullcolor(username: str):
             except Exception:
                 def_color = None
         else:
-            # Valeur invalide fournie en query â†’ tenter DB
+            # Valeur invalide fournie en query â tenter DB
             if not def_from_db:
                 db_def = _user_service().get_default_color(owner)
                 if db_def:
@@ -276,18 +238,17 @@ def user_fullcolor(username: str):
                         def_color = (r, g, b)
                     except Exception:
                         def_color = None
-    # DÃ©cider de la couleur: si pas de musique en cours et def_color fourni â†’ utiliser def_color
+    # Dcider de la couleur: si pas de musique en cours et def_color fourni â utiliser def_color
     track = None
     try:
-        # Pour Tidal, pas de now-playing: ignorer ici (se base sur /tidal/track)
-        track = None if is_tidal else extractor.get_current_track_info()
+        track = extractor.get_current_track_info()
     except Exception:
         track = None
     if def_color is not None and (not track or not track.get("is_playing", False)):
         color = def_color
         source = "default"
     else:
-        color = extractor.extract_color() if not is_tidal else (255, 0, 150)
+        color = extractor.extract_color()
         source = "album"
     processing_ms = int((time.perf_counter() - start) * 1000)
     return jsonify(
@@ -312,17 +273,8 @@ def user_fullcolor_uuid(user_uuid):
     start = time.perf_counter()
     ts = int(time.time())
     user_uuid = str(user_uuid)
-    provider = (request.args.get("provider") or "").lower()
-    is_tidal = provider == "tidal"
-    # owner for pref
-    _u = _resolve_user(user_uuid)
-    owner = _u.username if _u else None
-    if not provider and owner:
-        pref = _user_service().get_music_platform(owner)
-        provider = (pref or "spotify").lower()
-    is_tidal = provider == "tidal"
-    extractor = _user_extractor_tidal(user_uuid) if is_tidal else _user_extractor(user_uuid)
-    # ParamÃ¨tre de couleur par dÃ©faut (ex: ?default=ff00ff ou ?default=#ff00ff)
+    extractor = _user_extractor(user_uuid)
+    # Param¨tre de couleur par dfaut (ex: ?default=ff00ff ou ?default=#ff00ff)
     raw_default = (request.args.get("default") or "").strip()
     def_hex = "" if raw_default.lower() in ("db", "auto", "use-db") else raw_default
     # Fallback DB si pas fourni
@@ -363,17 +315,17 @@ def user_fullcolor_uuid(user_uuid):
                             def_color = (r, g, b)
                         except Exception:
                             def_color = None
-    # DÃ©cider de la couleur: si pas de musique en cours et def_color fourni â†’ utiliser def_color
+    # Dcider de la couleur: si pas de musique en cours et def_color fourni â utiliser def_color
     track = None
     try:
-        track = None if is_tidal else extractor.get_current_track_info()
+        track = extractor.get_current_track_info()
     except Exception:
         track = None
     if def_color is not None and (not track or not track.get("is_playing", False)):
         color = def_color
         source = "default"
     else:
-        color = extractor.extract_color() if not is_tidal else (255, 0, 150)
+        color = extractor.extract_color()
         source = "album"
     processing_ms = int((time.perf_counter() - start) * 1000)
     u = _resolve_user(user_uuid)
@@ -399,20 +351,16 @@ def user_fullcolor_uuid(user_uuid):
 def user_infos(username: str):
     start = time.perf_counter()
     ts = int(time.time())
-    provider = (request.args.get("provider") or "").lower()
-    # Récupérer propriétaire réel 
+    # Récupérer propriétaire réel
     _u = _resolve_user(username)
     owner = _u.username if _u else username
-    if not provider:
-        pref = _user_service().get_music_platform(owner)
-        provider = (pref or "spotify").lower()
-    is_tidal = provider == "tidal"
-    extractor = _user_extractor_tidal(username) if is_tidal else _user_extractor(username)
+    # Spotify uniquement
+    extractor = _user_extractor(username)
     _u = _resolve_user(username)
     owner = _u.username if _u else username
-    track = None if is_tidal else extractor.get_current_track_info()
+    track = extractor.get_current_track_info()
     # Inclure aussi la couleur pour convenance
-    # ParamÃ¨tre de couleur par dÃ©faut
+    # Param¨tre de couleur par dfaut
     raw_default = (request.args.get("default") or "").strip()
     def_hex = "" if raw_default.lower() in ("db", "auto", "use-db") else raw_default
     def_from_db = False
@@ -452,7 +400,7 @@ def user_infos(username: str):
         color = def_color
         source = "default"
     else:
-        color = extractor.extract_color() if not is_tidal else (255, 0, 150)
+        color = extractor.extract_color()
         source = "album"
     color_obj = {
         "r": color[0],
@@ -474,187 +422,6 @@ def user_infos(username: str):
     )
 
 
-# ---- Tidal: endpoints device login + couleur par piste ----
-
-@bp.route("/<username>/tidal/device-login/start", methods=["GET"])
-def tidal_device_login_start(username: str):
-    u_res = _resolve_user(username)
-    owner = u_res.username if u_res else username
-    if _norm(_session_username()) != _norm(owner):
-        return jsonify({"status": "error", "error": "Unauthorized"}), 401
-    if TidalClient is None:
-        return jsonify({"status": "error", "error": "Tidal non disponible: pip install tidalapi"}), 500
-    client = TidalClient()
-    link = client.session.get_link_login()
-    # stocker pour statut/polling
-    store = current_app.extensions.get("tidal_link_logins") or {}
-    store[owner] = link
-    current_app.extensions["tidal_link_logins"] = store
-    info = {
-        "user_code": link.user_code,
-        "verification_uri": link.verification_uri,
-        "verification_uri_complete": link.verification_uri_complete,
-        "expires_in": int(link.expires_in),
-        "interval": int(link.interval),
-    }
-    return jsonify({"status": "success", **info})
-
-
-@bp.route("/<uuid:user_uuid>/tidal/device-login/start", methods=["GET"])
-def tidal_device_login_start_uuid(user_uuid):
-    user_uuid = str(user_uuid)
-    if _norm(_session_username()) != _norm(_owner_username_for_ref(user_uuid)):
-        return jsonify({"status": "error", "error": "Unauthorized"}), 401
-    if TidalClient is None:
-        return jsonify({"status": "error", "error": "Tidal non disponible: pip install tidalapi"}), 500
-    client = TidalClient()
-    link = client.session.get_link_login()
-    store = current_app.extensions.get("tidal_link_logins") or {}
-    store[user_uuid] = link
-    current_app.extensions["tidal_link_logins"] = store
-    info = {
-        "user_code": link.user_code,
-        "verification_uri": link.verification_uri,
-        "verification_uri_complete": link.verification_uri_complete,
-        "expires_in": int(link.expires_in),
-        "interval": int(link.interval),
-    }
-    return jsonify({"status": "success", **info})
-
-
-@bp.route("/<username>/tidal/device-login/status", methods=["GET"])
-def tidal_device_login_status(username: str):
-    u_res = _resolve_user(username)
-    owner = u_res.username if u_res else username
-    if _norm(_session_username()) != _norm(owner):
-        return jsonify({"status": "error", "error": "Unauthorized"}), 401
-    if TidalClient is None:
-        return jsonify({"status": "error", "error": "Tidal non disponible: pip install tidalapi"}), 500
-    client = TidalClient()
-    store = current_app.extensions.get("tidal_link_logins") or {}
-    link = store.get(owner)
-    if not link:
-        return jsonify({"status": "pending"})
-    ok = client.session.process_link_login(link, until_expiry=False)
-    if ok:
-        u = _resolve_user(owner)
-        username = u.username if u else owner
-        try:
-            _user_service().set_tidal_tokens(
-                username=username,
-                token_type=client.session.token_type or "Bearer",
-                access_token=client.session.access_token or "",
-                refresh_token=client.session.refresh_token or "",
-                expiry_time=client.session.expiry_time,
-            )
-        except Exception:
-            ok = False
-    return jsonify({"status": "success" if ok else "pending"})
-
-
-@bp.route("/<uuid:user_uuid>/tidal/device-login/status", methods=["GET"])
-def tidal_device_login_status_uuid(user_uuid):
-    user_uuid = str(user_uuid)
-    if _norm(_session_username()) != _norm(_owner_username_for_ref(user_uuid)):
-        return jsonify({"status": "error", "error": "Unauthorized"}), 401
-    if TidalClient is None:
-        return jsonify({"status": "error", "error": "Tidal non disponible: pip install tidalapi"}), 500
-    client = TidalClient()
-    store = current_app.extensions.get("tidal_link_logins") or {}
-    link = store.get(user_uuid)
-    if not link:
-        return jsonify({"status": "pending"})
-    ok = client.session.process_link_login(link, until_expiry=False)
-    if ok:
-        u = _resolve_user(user_uuid)
-        username = u.username if u else None
-        if username:
-            try:
-                _user_service().set_tidal_tokens(
-                    username=username,
-                    token_type=client.session.token_type or "Bearer",
-                    access_token=client.session.access_token or "",
-                    refresh_token=client.session.refresh_token or "",
-                    expiry_time=client.session.expiry_time,
-                )
-            except Exception:
-                ok = False
-    return jsonify({"status": "success" if ok else "pending"})
-
-
-@bp.route("/<username>/tidal/track", methods=["GET"])
-def tidal_track_color(username: str):
-    # Requiert ?id=<track_id> ou ?isrc=<code>
-    if TidalColorExtractor is None:
-        return jsonify({"status": "error", "error": "Tidal non disponible: pip install tidalapi"}), 500
-    ex = _user_extractor_tidal(username)
-    track_id = request.args.get("id")
-    isrc = request.args.get("isrc")
-    if not track_id and not isrc:
-        return jsonify({"status": "error", "error": "id ou isrc requis"}), 400
-    try:
-        track_id_int = int(track_id) if track_id else None
-    except Exception:
-        return jsonify({"status": "error", "error": "id invalide"}), 400
-    res = ex.get_track_and_color(username, track_id=track_id_int, isrc=isrc)
-    if not res:
-        return jsonify({"status": "error", "error": "Introuvable ou non connectÃ©"}), 400
-    return jsonify({"status": "success", **res})
-
-
-@bp.route("/<uuid:user_uuid>/tidal/track", methods=["GET"])
-def tidal_track_color_uuid(user_uuid):
-    user_uuid = str(user_uuid)
-    if TidalColorExtractor is None:
-        return jsonify({"status": "error", "error": "Tidal non disponible: pip install tidalapi"}), 500
-    ex = _user_extractor_tidal(user_uuid)
-    track_id = request.args.get("id")
-    isrc = request.args.get("isrc")
-    if not track_id and not isrc:
-        return jsonify({"status": "error", "error": "id ou isrc requis"}), 400
-    try:
-        track_id_int = int(track_id) if track_id else None
-    except Exception:
-        return jsonify({"status": "error", "error": "id invalide"}), 400
-    res = ex.get_track_and_color(user_uuid, track_id=track_id_int, isrc=isrc)
-    if not res:
-        return jsonify({"status": "error", "error": "Introuvable ou non connectÃ©"}), 400
-    return jsonify({"status": "success", **res})
-
-
-@bp.route("/<username>/settings/tidal", methods=["GET"])
-def user_tidal_settings(username: str):
-    u_res = _resolve_user(username)
-    owner = u_res.username if u_res else username
-    if _norm(_session_username()) != _norm(owner):
-        return jsonify({"status": "error", "error": "Unauthorized"}), 401
-    tokens = _user_service().get_tidal_tokens(owner)
-    return jsonify({
-        "status": "success",
-        "tidal_connected": bool(tokens and tokens[2]),
-        "username": owner,
-        "uuid": u_res.uuid if u_res else None,
-    })
-
-
-@bp.route("/<uuid:user_uuid>/settings/tidal", methods=["GET"])
-def user_tidal_settings_uuid(user_uuid):
-    user_uuid = str(user_uuid)
-    u_res = _resolve_user(user_uuid)
-    if not u_res:
-        return jsonify({"status": "error", "error": "Utilisateur introuvable"}), 404
-    owner = u_res.username
-    if _norm(_session_username()) != _norm(owner):
-        return jsonify({"status": "error", "error": "Unauthorized"}), 401
-    tokens = _user_service().get_tidal_tokens(owner)
-    return jsonify({
-        "status": "success",
-        "tidal_connected": bool(tokens and tokens[2]),
-        "username": owner,
-        "uuid": u_res.uuid,
-    })
-
-
 @bp.route("/<uuid:user_uuid>/infos", methods=["GET"])
 def user_infos_uuid(user_uuid):
     start = time.perf_counter()
@@ -664,7 +431,7 @@ def user_infos_uuid(user_uuid):
     track = extractor.get_current_track_info()
     u = _resolve_user(user_uuid)
     # Inclure aussi la couleur pour convenance
-    # ParamÃ¨tre de couleur par dÃ©faut
+    # Paramètre de couleur par défaut
     raw_default = (request.args.get("default") or "").strip()
     def_hex = "" if raw_default.lower() in ("db", "auto", "use-db") else raw_default
     if not def_hex:
@@ -673,7 +440,7 @@ def user_infos_uuid(user_uuid):
             db_def = _user_service().get_default_color(u2.username)
             if db_def:
                 def_hex = db_def
-    # Construire la couleur par dÃ©faut si prÃ©sente
+    # Construire la couleur par dfaut si prsente
     def_color = None
     if def_hex:
         h = def_hex.lstrip("#")
@@ -702,7 +469,7 @@ def user_infos_uuid(user_uuid):
                         def_color = (r, g, b)
                     except Exception:
                         def_color = None
-    # Construire la couleur par dÃ©faut si prÃ©sente
+    # Construire la couleur par dfaut si prsente
     def_color = None
     if def_hex:
         h = def_hex.lstrip("#")
@@ -716,7 +483,7 @@ def user_infos_uuid(user_uuid):
                 def_color = (r, g, b)
             except Exception:
                 def_color = None
-    # Choisir la couleur (par dÃ©faut si rien ne joue)
+    # Choisir la couleur (par défaut si rien ne joue)
     if def_color is not None and (not track or not track.get("is_playing", False)):
         color = def_color
         source = "default"
@@ -746,7 +513,7 @@ def user_infos_uuid(user_uuid):
 
 @bp.route("/<username>/settings/display", methods=["GET", "POST"])
 def user_settings_display(username: str):
-    # PropriÃ©taire uniquement
+    # Propritaire uniquement
     u_res = _resolve_user(username)
     owner = u_res.username if u_res else username
     if _norm(_session_username()) != _norm(owner):
@@ -860,7 +627,7 @@ def user_spotify_oauth_url(username: str):
         jsonify(
             {
                 "status": "error",
-                "error": "Client ID/Secret non configurÃ©s pour cet utilisateur",
+                "error": "Client ID/Secret non configurs pour cet utilisateur",
             }
         ),
         400,
@@ -889,7 +656,7 @@ def user_spotify_oauth_url_uuid(user_uuid):
         jsonify(
             {
                 "status": "error",
-                "error": "Client ID/Secret non configurÃ©s pour cet utilisateur",
+                "error": "Client ID/Secret non configurs pour cet utilisateur",
             }
         ),
         400,
@@ -904,8 +671,8 @@ def user_spotify_callback(username: str):
         return (
             render_template(
                 "callback.html",
-                title="Non autorisÃ©",
-                message="Vous devez Ãªtre connectÃ© en tant que propriÃ©taire pour lier Spotify.",
+                title="Non autorisé",
+                message="Vous devez être connecté en tant que propriétaire pour lier Spotify.",
                 accent="#ff6b6b",
                 return_url=url_for("pages.login_page"),
             ),
@@ -940,7 +707,7 @@ def user_spotify_callback(username: str):
             render_template(
                 "callback.html",
                 title="Code manquant",
-                message="ParamÃ¨tre 'code' absent.",
+                message="Paramètre 'code' absent.",
                 accent="#ff6b6b",
                 return_url=return_url,
             ),
@@ -948,15 +715,15 @@ def user_spotify_callback(username: str):
         )
     ok = extractor.spotify_client.handle_callback(code)
     if ok:
-        # Sauver le refresh token en DB uniquement s'il est prÃ©sent
+        # Sauver le refresh token en DB uniquement s'il est prsent
         rt = extractor.spotify_client.spotify_refresh_token
         if rt:
             _user_service().set_refresh_token(username, rt)
         return (
             render_template(
                 "callback.html",
-                title="Connexion rÃ©ussie",
-                message="Votre Spotify est connectÃ©.",
+                title="Connexion russie",
+                message="Votre Spotify est connect.",
                 accent="#1db954",
                 return_url=return_url,
             ),
@@ -965,7 +732,7 @@ def user_spotify_callback(username: str):
     return (
         render_template(
             "callback.html",
-            title="Ã‰chec connexion",
+            title="chec connexion",
             message="Impossible d'autoriser Spotify.",
             accent="#ff6b6b",
             return_url=return_url,
@@ -981,8 +748,8 @@ def user_spotify_callback_uuid(user_uuid):
         return (
             render_template(
                 "callback.html",
-                title="Non autorisÃ©",
-                message="Vous devez Ãªtre connectÃ© en tant que propriÃ©taire pour lier Spotify.",
+                title="Non autorisé",
+                message="Vous devez être connecté en tant que propriétaire pour lier Spotify.",
                 accent="#ff6b6b",
                 return_url=url_for("pages.login_page"),
             ),
@@ -1008,7 +775,7 @@ def user_spotify_callback_uuid(user_uuid):
             render_template(
                 "callback.html",
                 title="Code manquant",
-                message="ParamÃ¨tre 'code' absent.",
+                message="Paramètre 'code' absent.",
                 accent="#ff6b6b",
                 return_url=return_url,
             ),
@@ -1025,8 +792,8 @@ def user_spotify_callback_uuid(user_uuid):
         return (
             render_template(
                 "callback.html",
-                title="Connexion rÃ©ussie",
-                message="Votre Spotify est connectÃ©.",
+                title="Connexion réussie",
+                message="Votre Spotify est connecté.",
                 accent="#1db954",
                 return_url=return_url,
             ),
@@ -1035,7 +802,7 @@ def user_spotify_callback_uuid(user_uuid):
     return (
         render_template(
             "callback.html",
-            title="Ã‰chec connexion",
+            title="Échec de la connexion",
             message="Impossible d'autoriser Spotify.",
             accent="#ff6b6b",
             return_url=return_url,
@@ -1054,7 +821,7 @@ def user_spotify_logout(username: str):
     ok = extractor.spotify_client.logout()
     # Effacer refresh en DB
     _user_service().set_refresh_token(username, None)
-    # Plus de fichiers locaux Ã  supprimer
+    # Plus de fichiers locaux à supprimer
     return jsonify({"status": "success" if ok else "error"})
 
 
@@ -1073,13 +840,13 @@ def user_spotify_logout_uuid(user_uuid):
 
 @bp.route("/<username>/settings/spotify", methods=["GET", "POST"])
 def user_spotify_settings(username: str):
-    # PrivÃ©: exiger session propriÃ©taire (rÃ©soudre UUID Ã©ventuel)
+    # Priv: exiger session propritaire (rsoudre UUID ventuel)
     u_res = _resolve_user(username)
     owner = u_res.username if u_res else username
     if _norm(_session_username()) != _norm(owner):
         return jsonify({"status": "error", "error": "Unauthorized"}), 401
     us = _user_service()
-    # RÃ©soudre le cas oÃ¹ `username` est en rÃ©alitÃ© un UUID
+    # Rsoudre le cas où `username` est en réalité un UUID
     resolved_username = owner
     if request.method == "POST":
         # Accepter JSON ou form-data
@@ -1090,14 +857,14 @@ def user_spotify_settings(username: str):
         new_client_secret = (
             data.get("client_secret") or request.form.get("client_secret") or ""
         ).strip()
-        # RÃ©cupÃ©rer l'existant et autoriser mise Ã  jour partielle
+        # Récupérer l'existant et autoriser mise à jour partielle
         cur_id, cur_secret = us.get_spotify_credentials(resolved_username)
         if not new_client_id and not new_client_secret:
             return (
                 jsonify(
                     {
                         "status": "error",
-                        "error": "Fournir au moins lâ€™un de client_id ou client_secret",
+                        "error": "Fournir au moins lâun de client_id ou client_secret",
                     }
                 ),
                 400,
@@ -1111,7 +878,7 @@ def user_spotify_settings(username: str):
             return jsonify({"status": "error", "error": str(e)}), 500
         if not ok:
             return jsonify({"status": "error", "error": "Utilisateur introuvable"}), 404
-        # Invalider l'extracteur en cache pour ce user (username et uuid Ã©ventuel)
+        # Invalider l'extracteur en cache pour ce user (username et uuid ventuel)
         cache = current_app.extensions.get("user_extractors") or {}
         cache.pop(resolved_username, None)
         # Essayer aussi via uuid si dispo
@@ -1123,7 +890,7 @@ def user_spotify_settings(username: str):
             pass
         current_app.extensions["user_extractors"] = cache
         return jsonify({"status": "success" if ok else "error"})
-    # GET: prÃ©-remplir
+    # GET: pr-remplir
     cid, csec = us.get_spotify_credentials(resolved_username)
     refresh = us.get_refresh_token(resolved_username)
     # Statut connexion plus robuste via extracteur
@@ -1136,11 +903,11 @@ def user_spotify_settings(username: str):
         is_auth = ex.spotify_client.is_authenticated() if ex else False
     except Exception:
         is_auth = False
-    # Fournir une Redirect URI recommandÃ©e pour configuration cÃ´tÃ© Spotify (copiable avant connexion)
+    # Fournir une Redirect URI recommande pour configuration côté Spotify (copiable avant connexion)
     base = _external_base_url()
-    # Conserver le segment fourni cÃ´tÃ© URL pour cohÃ©rence visuelle
+    # Conserver le segment fourni côté URL pour cohérence visuelle
     recommended_redirect_uri = f"{base}/{username}/spotify/callback"
-    # VÃ©rifier validitÃ© de la clÃ© de chiffrement
+    # Vérifier validité de la clé de chiffrement
     from app.security.crypto import encrypt_str
 
     enc_ready = bool(os.getenv("ENCRYPTION_KEY"))
@@ -1151,7 +918,7 @@ def user_spotify_settings(username: str):
             enc_valid = True
         except Exception:
             enc_valid = False
-    # RÃ©cupÃ©rer uuid si disponible pour information
+    # récupérer uuid si disponible pour information
     try:
         resolved_user_obj = us.get_user(resolved_username)
         resolved_uuid = resolved_user_obj.uuid if resolved_user_obj else None
@@ -1173,7 +940,7 @@ def user_spotify_settings(username: str):
     )
 
 
-# Profil: lecture/mise Ã  jour username/email (propriÃ©taire seulement)
+# Profil: lecture/mise à jour username/email (propritaire seulement)
 @bp.route("/<username>/settings/profile", methods=["GET", "POST"])
 def user_profile_settings(username: str):
     u_res = _resolve_user(username)
@@ -1190,7 +957,7 @@ def user_profile_settings(username: str):
         )
         if not ok:
             return jsonify({"status": "error", "error": err or "Erreur"}), 400
-        # Si username changÃ©, mettre Ã  jour la session
+        # Si username chang, mettre à jour la session
         if u_name and _norm(u_name) != _norm(_session_username()):
             session["user"] = u_name
         return jsonify(
@@ -1252,7 +1019,7 @@ def user_profile_settings_uuid(user_uuid):
     )
 
 
-# Changer le mot de passe (propriÃ©taire seulement)
+# Changer le mot de passe (propritaire seulement)
 @bp.route("/<username>/settings/password", methods=["POST"])
 def user_change_password(username: str):
     u_res = _resolve_user(username)
@@ -1310,7 +1077,7 @@ def user_spotify_settings_uuid(user_uuid):
                 jsonify(
                     {
                         "status": "error",
-                        "error": "Fournir au moins lâ€™un de client_id ou client_secret",
+                        "error": "Fournir au moins lâun de client_id ou client_secret",
                     }
                 ),
                 400,
@@ -1323,7 +1090,7 @@ def user_spotify_settings_uuid(user_uuid):
             return jsonify({"status": "error", "error": str(e)}), 500
         if not ok:
             return jsonify({"status": "error", "error": "Utilisateur introuvable"}), 404
-        # Invalider l'extracteur en cache (clÃ© uuid et username)
+        # Invalider l'extracteur en cache (clé uuid et username)
         cache = current_app.extensions.get("user_extractors") or {}
         cache.pop(user_uuid, None)
         cache.pop(username, None)
@@ -1339,7 +1106,7 @@ def user_spotify_settings_uuid(user_uuid):
         is_auth = False
     base = _external_base_url()
     recommended_redirect_uri = f"{base}/{user_uuid}/spotify/callback"
-    # VÃ©rifier validitÃ© de la clÃ© de chiffrement
+    # Vérifier validité de la clé de chiffrement
     from app.security.crypto import encrypt_str
 
     enc_ready = bool(os.getenv("ENCRYPTION_KEY"))
@@ -1364,73 +1131,3 @@ def user_spotify_settings_uuid(user_uuid):
             "uuid": user_uuid,
         }
     )
-
-
-# ---- Plateforme utilisateur: Spotify/Tidal ----
-
-@bp.route("/<username>/settings/platform", methods=["GET", "POST"])
-def settings_platform(username: str):
-    u_res = _resolve_user(username)
-    owner = u_res.username if u_res else username
-    if _norm(_session_username()) != _norm(owner):
-        return jsonify({"status": "error", "error": "Unauthorized"}), 401
-    if request.method == "POST":
-        data = request.get_json(silent=True) or {}
-        platform = (
-            data.get("platform") or request.form.get("platform") or ""
-        ).strip().lower()
-        ok = _user_service().set_music_platform(owner, platform)
-        if not ok:
-            return jsonify({"status": "error", "error": "Plateforme invalide"}), 400
-        return jsonify({"status": "success", "platform": platform})
-    # GET
-    platform = _user_service().get_music_platform(owner) or "spotify"
-    return jsonify({"status": "success", "platform": platform})
-
-
-@bp.route("/<uuid:user_uuid>/settings/platform", methods=["GET", "POST"])
-def settings_platform_uuid(user_uuid):
-    user_uuid = str(user_uuid)
-    u_res = _resolve_user(user_uuid)
-    if not u_res:
-        return jsonify({"status": "error", "error": "Utilisateur introuvable"}), 404
-    owner = u_res.username
-    if _norm(_session_username()) != _norm(owner):
-        return jsonify({"status": "error", "error": "Unauthorized"}), 401
-    if request.method == "POST":
-        data = request.get_json(silent=True) or {}
-        platform = (
-            data.get("platform") or request.form.get("platform") or ""
-        ).strip().lower()
-        ok = _user_service().set_music_platform(owner, platform)
-        if not ok:
-            return jsonify({"status": "error", "error": "Plateforme invalide"}), 400
-        return jsonify({"status": "success", "platform": platform})
-    # GET
-    platform = _user_service().get_music_platform(owner) or "spotify"
-    return jsonify({"status": "success", "platform": platform})
-
-
-# ---- Tidal logout (efface tokens) ----
-
-@bp.route("/<username>/tidal/logout", methods=["POST"])
-def tidal_logout(username: str):
-    u_res = _resolve_user(username)
-    owner = u_res.username if u_res else username
-    if _norm(_session_username()) != _norm(owner):
-        return jsonify({"status": "error", "error": "Unauthorized"}), 401
-    _user_service().clear_tidal_tokens(owner)
-    return jsonify({"status": "success"})
-
-
-@bp.route("/<uuid:user_uuid>/tidal/logout", methods=["POST"])
-def tidal_logout_uuid(user_uuid):
-    user_uuid = str(user_uuid)
-    u_res = _resolve_user(user_uuid)
-    if not u_res:
-        return jsonify({"status": "error", "error": "Utilisateur introuvable"}), 404
-    owner = u_res.username
-    if _norm(_session_username()) != _norm(owner):
-        return jsonify({"status": "error", "error": "Unauthorized"}), 401
-    _user_service().clear_tidal_tokens(owner)
-    return jsonify({"status": "success"})
