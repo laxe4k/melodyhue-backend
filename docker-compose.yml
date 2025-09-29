@@ -5,32 +5,26 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "${PORT}:${PORT}"
+      - "${PORT:-8494}:${PORT:-8494}"
     environment:
-      # Flask configuration
-      SECRET_KEY: ${SECRET_KEY}
-      HOST: ${HOST}
-      PORT: ${PORT}
-      FLASK_DEBUG: ${FLASK_DEBUG}
+      SECRET_KEY: "${SECRET_KEY}"
+      HOST: "0.0.0.0"
+      PORT: "${PORT:-8494}"
+      FLASK_DEBUG: "${FLASK_DEBUG:-false}"
 
-      # Encryption configuration
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      ENCRYPTION_KEY: "${ENCRYPTION_KEY}"
+      SPOTIFY_REDIRECT_URI: "${SPOTIFY_REDIRECT_URI:-}"
 
-      # Spotify API configuration (optionnel)
-      SPOTIFY_REDIRECT_URI: ${SPOTIFY_REDIRECT_URI}
+      DB_HOST: "${DB_HOST}"
+      DB_DATABASE: "${DB_DATABASE}"
+      DB_USER: "${DB_USER}"
+      DB_PASSWORD: "${DB_PASSWORD}"
+      DB_PORT: "${DB_PORT:-5432}"
 
-      # DB configuration
-      DB_HOST: ${DB_HOST}
-      DB_DATABASE: ${DB_DATABASE}
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_PORT: ${DB_PORT}
-
-      # SMTP configuration (not used for now)
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_PORT: ${SMTP_PORT}
-      SMTP_USER: ${SMTP_USER}
-      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_HOST: "${SMTP_HOST:-}"
+      SMTP_PORT: "${SMTP_PORT:-}"
+      SMTP_USER: "${SMTP_USER:-}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
     volumes:
       - spotify_data:/home/spotifyapi/data
     networks:
@@ -38,3 +32,6 @@ services:
 
 volumes:
   spotify_data:
+
+networks:
+  spotify-network: {}
