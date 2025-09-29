@@ -1,7 +1,9 @@
 services:
   nowplaying-color-api:
-    image: ghcr.io/laxe4k/nowplaying-color-api:latest
-    container_name: nowplaying-color-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
     ports:
       - "${PORT}:${PORT}"
     environment:
@@ -31,15 +33,8 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD}
     volumes:
       - spotify_data:/home/spotifyapi/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${PORT}/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
     networks:
       - spotify-network
-    restart: unless-stopped
 
 volumes:
   spotify_data:
