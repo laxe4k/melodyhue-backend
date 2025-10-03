@@ -1,5 +1,5 @@
 services:
-  nowplaying-color-api:
+  melodyhue-backend:
     build:
       context: .
       dockerfile: Dockerfile
