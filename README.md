@@ -1,12 +1,12 @@
-# NowPlaying Color API
+# MelodyHue - Backend
 
-[![GitHub Release](https://img.shields.io/github/v/release/laxe4k/nowplaying-color-api)](https://github.com/laxe4k/nowplaying-color-api/releases)
-[![GitHub Release Date](https://img.shields.io/github/release-date/laxe4k/nowplaying-color-api)](https://github.com/laxe4k/nowplaying-color-api/releases)
-[![GitHub License](https://img.shields.io/github/license/laxe4k/nowplaying-color-api)](https://github.com/laxe4k/nowplaying-color-api/blob/main/LICENSE)
-[![GitHub contributors](https://img.shields.io/github/contributors/laxe4k/nowplaying-color-api)](https://github.com/laxe4k/nowplaying-color-api/graphs/contributors)
-[![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-ghcr.io-blue)](https://github.com/laxe4k/nowplaying-color-api/pkgs/container/nowplaying-color-api)
-[![GitHub Issues](https://img.shields.io/github/issues/laxe4k/nowplaying-color-api)](https://github.com/laxe4k/nowplaying-color-api/issues)
-[![CI/CD - Docker](https://github.com/laxe4k/nowplaying-color-api/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/laxe4k/nowplaying-color-api/actions/workflows/ci-cd.yml)
+[![GitHub Release](https://img.shields.io/github/v/release/laxe4k/melodyhue-backend)](https://github.com/laxe4k/melodyhue-backend/releases)
+[![GitHub Release Date](https://img.shields.io/github/release-date/laxe4k/melodyhue-backend)](https://github.com/laxe4k/melodyhue-backend/releases)
+[![GitHub License](https://img.shields.io/github/license/laxe4k/melodyhue-backend)](https://github.com/laxe4k/melodyhue-backend/blob/main/LICENSE)
+[![GitHub contributors](https://img.shields.io/github/contributors/laxe4k/melodyhue-backend)](https://github.com/laxe4k/melodyhue-backend/graphs/contributors)
+[![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-ghcr.io-blue)](https://github.com/laxe4k/melodyhue-backend/pkgs/container/melodyhue-backend)
+[![GitHub Issues](https://img.shields.io/github/issues/laxe4k/melodyhue-backend)](https://github.com/laxe4k/melodyhue-backend/issues)
+[![CI/CD - Docker](https://github.com/laxe4k/melodyhue-backend/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/laxe4k/melodyhue-backend/actions/workflows/ci-cd.yml)
 
 API Flask avec UI qui affiche la musique Spotify en cours et extrait une couleur dominante « naturelle mais punchy » depuis la pochette.
 Support multi‑utilisateurs (comptes), OAuth Spotify par utilisateur, tokens chiffrés, endpoints JSON simples et déploiement Docker.
@@ -16,7 +16,7 @@ Support multi‑utilisateurs (comptes), OAuth Spotify par utilisateur, tokens ch
 ## 🏗️ Structure
 
 ```
-nowplaying-color-api/
+melodyhue-backend/
 ├─ run.py                                     # Entrypoint Flask (HOST/PORT/FLASK_DEBUG via .env)
 ├─ app/
 │  ├─ __init__.py                             # App factory, config, enregistrement des blueprints
@@ -179,9 +179,9 @@ python run.py
 
 ```yaml
 services:
-  nowplaying-color-api:
-    image: ghcr.io/laxe4k/nowplaying-color-api:latest
-    container_name: nowplaying-color-api
+  melodyhue-backend:
+    image: ghcr.io/laxe4k/melodyhue-backend:latest
+    container_name: melodyhue-backend
     ports:
       - "${PORT}:${PORT}"
     environment:
@@ -348,9 +348,9 @@ Ce projet est distribué sous licence **MIT** - voir [LICENSE](LICENSE) pour les
 ## ⚡ Contribuer
 
 ### Comment contribuer
-- **Issues** : Signalez des bugs ou proposez des améliorations via [GitHub Issues](https://github.com/laxe4k/nowplaying-color-api/issues)
+- **Issues** : Signalez des bugs ou proposez des améliorations via [GitHub Issues](https://github.com/laxe4k/melodyhue-backend/issues)
 - **Pull Requests** : Fork le projet, créez une branche feature, et soumettez vos modifications
-- **Discussions** : Partagez vos idées dans les [GitHub Discussions](https://github.com/laxe4k/nowplaying-color-api/discussions)
+- **Discussions** : Partagez vos idées dans les [GitHub Discussions](https://github.com/laxe4k/melodyhue-backend/discussions)
 
 ### Idées d'améliorations
 - Algorithmes de couleur alternatifs (palette complète, couleurs complémentaires)
