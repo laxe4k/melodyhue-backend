@@ -1,7 +1,7 @@
 from typing import Optional, Dict
 from sqlalchemy.orm import Session
 from app.services.spotify_color_extractor_service import SpotifyColorExtractor
-from app.models.user import SpotifySecret
+from app.models.user import SpotifySecret, User
 import app.utils.encryption as enc
 
 
@@ -30,9 +30,20 @@ class AppState:
             return self.get_extractor()
         if user_id in self.user_extractors:
             return self.user_extractors[user_id]
-        # Create a new extractor and configure with user-specific Spotify secrets if present
+        # Create a new extractor and configure with user-specific settings & Spotify secrets if present
         extractor = SpotifyColorExtractor()
         try:
+            # Paramétrer la couleur de secours depuis les settings utilisateur (prioritaire)
+            from app.models.user import UserSetting
+
+            u = db.query(User).filter(User.id == user_id).first()
+            s = db.query(UserSetting).filter(UserSetting.user_id == user_id).first()
+            default_hex = (
+                getattr(s, "default_color_overlays", None) if s else None
+            ) or (getattr(u, "default_color_hex", None) if u else None)
+            if default_hex:
+                extractor.set_default_fallback_hex(default_hex)
+
             secret = (
                 db.query(SpotifySecret).filter(SpotifySecret.user_id == user_id).first()
             )

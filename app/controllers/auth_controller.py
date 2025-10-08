@@ -29,7 +29,9 @@ class AuthController:
         return u
 
     def _issue_tokens(self, db: Session, user: User) -> tuple[str, str]:
-        access = create_access_token(user.id, {"username": user.username})
+        access = create_access_token(
+            user.id, {"username": user.username, "role": getattr(user, "role", "user")}
+        )
         refresh = create_refresh_token(user.id)
         # Persist refresh token session
         sess = UserSession(

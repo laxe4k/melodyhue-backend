@@ -29,6 +29,18 @@ class Login2FAIn(BaseModel):
     totp: str
 
 
+class LoginTokensOut(TokenPair):
+    requires_2fa: bool = False
+    ticket: str | None = None
+    role: str = "user"
+    user_id: str
+
+
+class AuthSuccessOut(TokenPair):
+    user_id: str
+    role: str = "user"
+
+
 class RefreshIn(BaseModel):
     refresh_token: str
 
