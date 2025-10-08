@@ -38,7 +38,7 @@ class ColorExtractor:
                 return image
             else:
                 return None
-        except Exception as e:
+        except Exception:
             return None
 
     def extract_primary_color(self, image):

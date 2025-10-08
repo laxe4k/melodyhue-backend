@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Client Spotify API - Gestion des tokens et requêtes
+Client Spotify API - Gestion des tokens et requêtes (repris)
 """
 
 import os
@@ -17,27 +17,19 @@ load_dotenv()
 
 class SpotifyClient:
     def __init__(self, persist_to_file: bool = False):
-        """Client Spotify.
-
-        persist_to_file: si True, active le stockage de compatibilité sur fichier JSON (désactivé par défaut).
-        """
-        # Persistance optionnelle des tokens sur disque (désactivée par défaut)
         self._persist_to_file = bool(persist_to_file)
         if self._persist_to_file:
-            # Ordre de recherche/compat: SPOTIFY_TOKENS_FILE > instance/spotify_tokens.json > data/spotify_tokens.json (legacy)
             env_path = os.getenv("SPOTIFY_TOKENS_FILE")
             inst_path = os.path.join(os.getcwd(), "instance", "spotify_tokens.json")
             legacy_path = os.path.join(os.getcwd(), "data", "spotify_tokens.json")
             self.tokens_file_candidates = [
                 p for p in [env_path, inst_path, legacy_path] if p
             ]
-            # Le premier chemin servira pour l'écriture; on choisit env>instance>legacy
             self.tokens_file_write = env_path or inst_path
         else:
             self.tokens_file_candidates = []
             self.tokens_file_write = None
 
-        # Spotify API credentials
         self.spotify_client_id = None
         self.spotify_client_secret = None
         self.spotify_access_token = None
@@ -49,22 +41,16 @@ class SpotifyClient:
         self.redirect_uri = os.getenv(
             "SPOTIFY_REDIRECT_URI", "http://localhost:8765/spotify/callback"
         )
-        # Callback appelé lorsqu'un nouveau refresh_token est reçu (ex: persistance DB par utilisateur)
         self.on_refresh_token: Optional[Callable[[str], None]] = None
 
-        # Cache pour éviter les appels répétés
         self._last_spotify_check = 0
         self._last_spotify_result = None
 
-        # Auto-configuration
         self._setup_spotify()
 
     def _setup_spotify(self):
-        """Configuration Spotify automatique"""
         client_id = os.getenv("SPOTIFY_CLIENT_ID")
         client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
-
-        # Fallback: SPOTIFY_REFRESH_TOKEN (utile pour un mode global sans DB)
         env_refresh = os.getenv("SPOTIFY_REFRESH_TOKEN")
 
         if client_id and client_secret:
@@ -78,7 +64,6 @@ class SpotifyClient:
         return False
 
     def configure_spotify_api(self, client_id, client_secret, refresh_token=None):
-        """Configurer l'API Spotify"""
         self.spotify_client_id = client_id
         self.spotify_client_secret = client_secret
         self.spotify_refresh_token = refresh_token
@@ -89,7 +74,6 @@ class SpotifyClient:
         return False
 
     def _load_refresh_token(self):
-        """Charger un refresh token s'il existe sur disque (compat instance/ et data/)."""
         if not self._persist_to_file:
             return None
         try:
@@ -100,7 +84,6 @@ class SpotifyClient:
                     rt = data.get("refresh_token")
                     if rt:
                         self.spotify_refresh_token = rt
-                        # Charger aussi access token si valide
                         at = data.get("access_token")
                         exp = data.get("expires_at")
                         if at and isinstance(exp, (int, float)) and time.time() < exp:
@@ -112,22 +95,18 @@ class SpotifyClient:
         return None
 
     def _save_tokens(self, access_token, refresh_token=None, expires_in=3600):
-        """Sauvegarder tokens en mémoire et sur disque (si possible)."""
         self.spotify_access_token = access_token
         self.spotify_token_expires = time.time() + expires_in
         if refresh_token:
             self.spotify_refresh_token = refresh_token
-            # Informer le callback externe si présent
             try:
                 if self.on_refresh_token and isinstance(refresh_token, str):
                     self.on_refresh_token(refresh_token)
             except Exception:
                 pass
-        # Persister sur disque
         if self._persist_to_file:
             try:
                 target = self.tokens_file_write
-                # Créer dossier si nécessaire
                 if target:
                     os.makedirs(os.path.dirname(target), exist_ok=True)
                     with open(target, "w", encoding="utf-8") as f:
@@ -146,7 +125,6 @@ class SpotifyClient:
         return True
 
     def _load_access_token(self):
-        """Charger l'access token depuis le fichier si non expiré."""
         if not self._persist_to_file:
             return False
         try:
@@ -168,7 +146,6 @@ class SpotifyClient:
         return False
 
     def _get_spotify_access_token(self):
-        """Obtenir un token d'accès Spotify"""
         if self._load_access_token():
             return True
 
@@ -178,7 +155,6 @@ class SpotifyClient:
                 if success:
                     return True
 
-            # Client Credentials Flow
             auth_string = f"{self.spotify_client_id}:{self.spotify_client_secret}"
             auth_bytes = auth_string.encode("utf-8")
             auth_base64 = base64.b64encode(auth_bytes).decode("utf-8")
@@ -205,7 +181,6 @@ class SpotifyClient:
             return False
 
     def _refresh_access_token(self):
-        """Rafraîchir l'access token avec le refresh token"""
         try:
             auth_string = f"{self.spotify_client_id}:{self.spotify_client_secret}"
             auth_bytes = auth_string.encode("utf-8")
@@ -245,7 +220,6 @@ class SpotifyClient:
             return False
 
     def _test_spotify_api(self):
-        """Tester la connectivité de l'API Spotify"""
         if not self.spotify_enabled:
             return False
 
@@ -274,13 +248,11 @@ class SpotifyClient:
             return False
 
     def get_current_track(self):
-        """Obtenir les informations de la piste actuelle"""
         if not self.spotify_enabled:
             return None
 
-        # Cache ultra rapide pour éviter les appels répétés
         now = time.time()
-        if now - self._last_spotify_check < 1:  # Cache 1 seconde
+        if now - self._last_spotify_check < 1:
             return self._last_spotify_result
 
         self._last_spotify_check = now
@@ -305,7 +277,6 @@ class SpotifyClient:
                     data = response.json()
                     if data and data.get("item"):
                         track = data["item"]
-                        # Récupérer l'URL de la pochette en haute résolution
                         image_url = None
                         if track.get("album", {}).get("images"):
                             images = track["album"]["images"]
@@ -350,7 +321,6 @@ class SpotifyClient:
             return None
 
     def exchange_code_for_tokens(self, authorization_code):
-        """Échanger le code d'autorisation contre des tokens"""
         try:
             auth_string = f"{self.spotify_client_id}:{self.spotify_client_secret}"
             auth_bytes = auth_string.encode("utf-8")
@@ -373,21 +343,16 @@ class SpotifyClient:
                 token_data = response.json()
 
                 self.spotify_access_token = token_data["access_token"]
-                # Conserver le refresh_token existant si aucun nouveau n'est renvoyé
                 new_rt = token_data.get("refresh_token")
                 if new_rt:
                     self.spotify_refresh_token = new_rt
                 expires_in = token_data.get("expires_in", 3600)
                 self.spotify_token_expires = time.time() + expires_in - 60
 
-                # Persister access + refresh (avec refresh actuel éventuellement non modifié)
                 self._save_tokens(
                     self.spotify_access_token, self.spotify_refresh_token, expires_in
                 )
-
-                # Activer Spotify après autorisation utilisateur
                 self.spotify_enabled = True
-
                 logging.info("🎉 Tokens OAuth sauvegardés!")
                 return True
             else:
@@ -395,49 +360,38 @@ class SpotifyClient:
         except Exception:
             return False
 
-    # === Helpers OAuth pour l'API ===
     def get_auth_url(self):
-        """Générer l'URL d'authentification Spotify OAuth."""
         if not self.spotify_client_id:
             return None
         params = {
             "client_id": self.spotify_client_id,
             "response_type": "code",
             "redirect_uri": self.redirect_uri,
-            # Scopes requis pour lire la musique actuelle
             "scope": "user-read-currently-playing user-read-playback-state",
-            # show_dialog=true peut forcer la régénération du refresh_token
             "show_dialog": os.getenv("SPOTIFY_SHOW_DIALOG", "false").lower(),
         }
         return f"https://accounts.spotify.com/authorize?{requests.compat.urlencode(params)}"
 
     def handle_callback(self, code: str) -> bool:
-        """Traiter le callback OAuth (échange du code)."""
         if not code:
             return False
         return self.exchange_code_for_tokens(code)
 
     def is_authenticated(self) -> bool:
-        """Retourne True si l'API est configurée et dispose d'un refresh token ou d'un access token valide."""
         if not self.spotify_enabled:
             return False
         if self.spotify_refresh_token:
             return True
-        # Sinon, vérifier access token actuel
         return bool(
             self.spotify_access_token and time.time() < self.spotify_token_expires
         )
 
     def logout(self) -> bool:
-        """Déconnecter l’utilisateur: supprimer tokens et remettre l’état à zéro."""
         try:
-            # Effacer tokens en mémoire
             self.spotify_access_token = None
             self.spotify_refresh_token = None
             self.spotify_token_expires = 0
             self._last_spotify_result = None
-            # Vider fichier tokens
-            # Plus de fichiers à nettoyer
             return True
         except Exception:
             return False
