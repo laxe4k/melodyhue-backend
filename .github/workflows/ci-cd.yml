@@ -52,12 +52,3 @@ jobs:
           tags: ${{ steps.tag.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Trigger Portainer webhook for stack redeploy
-        if: ${{ startsWith(github.ref, 'refs/tags/') || github.ref_name == 'main' || github.ref_name == 'develop' }}
-        env:
-          PORTAINER_WEBHOOK_URL: ${{ secrets.PORTAINER_WEBHOOK_URL }}
-        run: |
-          echo "Triggering Portainer webhook to redeploy stack..."
-          curl -fsSL -k -X POST "$PORTAINER_WEBHOOK_URL"
-          echo "Portainer webhook triggered successfully!"
