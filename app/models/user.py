@@ -1,0 +1,140 @@
+from datetime import datetime
+from typing import Optional
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import String, DateTime
+from ..utils.database import Base
+from ..utils.shortid import new_short_uuid
+
+
+class User(Base):
+    __tablename__ = "api_users"
+
+    # Utiliser un id public court (UUID base64) comme clé primaire API
+    id: Mapped[str] = mapped_column(
+        String(32), primary_key=True, default=new_short_uuid
+    )
+    # Champs principaux
+    username: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+
+    default_color_hex: Mapped[Optional[str]] = mapped_column(
+        String(7), default="#25d865"
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+    last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    # Relations
+    overlays: Mapped[list["Overlay"]] = relationship(
+        back_populates="owner", cascade="all, delete-orphan"
+    )
+    sessions: Mapped[list["UserSession"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    twofa: Mapped[Optional["TwoFA"]] = relationship(
+        back_populates="user", uselist=False, cascade="all, delete-orphan"
+    )
+    spotify: Mapped[Optional["SpotifySecret"]] = relationship(
+        back_populates="user", uselist=False, cascade="all, delete-orphan"
+    )
+
+
+class Overlay(Base):
+    __tablename__ = "api_overlays"
+
+    id: Mapped[str] = mapped_column(
+        String(32), primary_key=True, default=new_short_uuid
+    )
+    owner_id: Mapped[str] = mapped_column(String(32), index=True)
+    name: Mapped[str] = mapped_column(String(120), default="Overlay")
+    color_hex: Mapped[str] = mapped_column(String(7), default="#25d865")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    owner: Mapped[User] = relationship(
+        "User", back_populates="overlays", primaryjoin="Overlay.owner_id==User.id"
+    )
+
+
+class UserSession(Base):
+    __tablename__ = "api_user_sessions"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=new_short_uuid
+    )
+    user_id: Mapped[str] = mapped_column(String(32), index=True)
+    refresh_token: Mapped[str] = mapped_column(String(512), unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+
+    user: Mapped[User] = relationship(
+        "User", back_populates="sessions", primaryjoin="UserSession.user_id==User.id"
+    )
+
+
+class TwoFA(Base):
+    __tablename__ = "api_twofa"
+
+    user_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    secret: Mapped[str] = mapped_column(String(64))
+    enabled_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    user: Mapped[User] = relationship(
+        "User", back_populates="twofa", primaryjoin="TwoFA.user_id==User.id"
+    )
+
+
+class SpotifySecret(Base):
+    __tablename__ = "api_spotify_secrets"
+
+    user_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    client_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    client_secret: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    refresh_token: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    user: Mapped[User] = relationship(
+        "User", back_populates="spotify", primaryjoin="SpotifySecret.user_id==User.id"
+    )
+
+
+class PasswordReset(Base):
+    __tablename__ = "api_password_resets"
+
+    token: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(32), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class UserSetting(Base):
+    __tablename__ = "api_user_settings"
+
+    user_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    theme: Mapped[str] = mapped_column(String(16), default="light")  # light|dark
+    layout: Mapped[str] = mapped_column(String(32), default="default")
+    default_overlay_color: Mapped[str] = mapped_column(String(7), default="#25d865")
+    avatar_mode: Mapped[str] = mapped_column(
+        String(16), default="gravatar"
+    )  # gravatar|initials
+    avatar_color: Mapped[str] = mapped_column(String(7), default="#25d865")
+
+
+class LoginChallenge(Base):
+    __tablename__ = "api_login_challenges"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=new_short_uuid
+    )
+    user_id: Mapped[str] = mapped_column(String(32), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
