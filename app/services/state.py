@@ -28,19 +28,23 @@ class AppState:
     ) -> SpotifyColorExtractor:
         if not user_id:
             return self.get_extractor()
-        if user_id in self.user_extractors:
-            return self.user_extractors[user_id]
-        # Create a new extractor and configure with user-specific settings & Spotify secrets if present
-        extractor = SpotifyColorExtractor()
+        # Récupérer ou créer l'extracteur utilisateur
+        extractor = self.user_extractors.get(user_id)
+        if not extractor:
+            extractor = SpotifyColorExtractor()
+            self.user_extractors[user_id] = extractor
+        # Toujours rafraîchir la couleur de secours depuis la DB pour refléter immédiatement les changements
         try:
-            # Paramétrer la couleur de secours depuis les settings utilisateur (prioritaire)
             from app.models.user import UserSetting
 
             s = db.query(UserSetting).filter(UserSetting.user_id == user_id).first()
             default_hex = getattr(s, "default_overlay_color", None) if s else None
             if default_hex:
                 extractor.set_default_fallback_hex(default_hex)
-
+        except Exception:
+            pass
+        # Configurer/rafraîchir les secrets Spotify si présents (ne change rien si identiques)
+        try:
             secret = (
                 db.query(SpotifySecret).filter(SpotifySecret.user_id == user_id).first()
             )
@@ -59,9 +63,7 @@ class AppState:
                 if cid and csec:
                     extractor.spotify_client.configure_spotify_api(cid, csec, rtok)
         except Exception:
-            # Fallback to unconfigured extractor
             pass
-        self.user_extractors[user_id] = extractor
         return extractor
 
 

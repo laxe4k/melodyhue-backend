@@ -134,8 +134,8 @@ class SpotifyColorExtractor:
         current_time = time.time()
         self.stats["requests"] += 1
         track_info = self.spotify_client.get_current_track()
-        if track_info and not track_info.get("is_playing", False):
-            # Rien en lecture: renvoyer la couleur par défaut configurée
+        # Si pas de piste ou en pause => couleur de secours (toujours actualisée via state)
+        if not track_info or not track_info.get("is_playing", False):
             return self._get_fallback_color()
 
         cache_key = f"color_{self.current_track_id}"
