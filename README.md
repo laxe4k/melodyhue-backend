@@ -1,4 +1,4 @@
-# MelodyHue - Backend
+# MelodyHue — Backend (FastAPI)
 
 [![GitHub Release](https://img.shields.io/github/v/release/laxe4k/melodyhue-backend)](https://github.com/laxe4k/melodyhue-backend/releases)
 [![GitHub Release Date](https://img.shields.io/github/release-date/laxe4k/melodyhue-backend)](https://github.com/laxe4k/melodyhue-backend/releases)
@@ -8,363 +8,139 @@
 [![GitHub Issues](https://img.shields.io/github/issues/laxe4k/melodyhue-backend)](https://github.com/laxe4k/melodyhue-backend/issues)
 [![CI/CD - Docker](https://github.com/laxe4k/melodyhue-backend/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/laxe4k/melodyhue-backend/actions/workflows/ci-cd.yml)
 
-API Flask avec UI qui affiche la musique Spotify en cours et extrait une couleur dominante « naturelle mais punchy » depuis la pochette.
-Support multi‑utilisateurs (comptes), OAuth Spotify par utilisateur, tokens chiffrés, endpoints JSON simples et déploiement Docker.
+API FastAPI multi‑utilisateurs qui affiche la musique Spotify en cours et calcule une couleur dominante depuis la pochette. Auth JWT (access/refresh), gestion des overlays (nom + template), couleur d’overlay héritée des paramètres utilisateur, et endpoints publics pour l’affichage.
 
 ---
 
-## 🏗️ Structure
+## ✨ Points clés
 
-```
-melodyhue-backend/
-├─ run.py                                     # Entrypoint Flask (HOST/PORT/FLASK_DEBUG via .env)
-├─ app/
-│  ├─ __init__.py                             # App factory, config, enregistrement des blueprints
-│  ├─ extensions.py                           # Extensions (SQLAlchemy, Migrate)
-│  ├─ controllers/                            # Routes HTTP
-│  │  ├─ auth_controller.py                   # Auth: login/register/logout
-│  │  ├─ pages_controller.py                  # Pages UI (index, settings, ...)
-│  │  ├─ spotify_controller.py                # Endpoints Spotify & couleurs
-│  │  └─ user_controller.py                   # Profil & gestion utilisateur
-│  ├─ services/                               # Logique métier
-│  │  ├─ color_extractor_service.py           # Extraction couleur dominante (Pillow)
-│  │  ├─ spotify_client_service.py            # OAuth + appels API Spotify
-│  │  ├─ spotify_color_extractor_service.py   # Orchestrateur Spotify+couleur
-│  │  └─ user_service.py                      # Opérations utilisateur
-│  ├─ models/
-│  │  └─ user_model.py                        # Modèle User (UUID, hash Argon2)
-│  ├─ security/
-│  │  └─ crypto.py                            # Chiffrement des tokens (Fernet)
-│  ├─ forms/
-│  │  ├─ auth_forms.py                        # WTForms pour auth
-│  │  └─ spotify_forms.py                     # WTForms pour config Spotify
-│  ├─ views/
-│  │  └─ templates/                           # Templates Jinja2 (index, login, ...)
-│  └─ static/
-│     └─ css/                                 # Styles globaux + pages
-├─ migrations/                                # Migrations Alembic
-├─ Dockerfile
-├─ docker-compose.yml
-├─ requirements.txt
-├─ ruff.toml                                  # Lint/format (Ruff)
-├─ .env.example                               # Exemple d’environnement
-└─ LICENSE
-```
+- FastAPI + SQLAlchemy
+- Auth JWT (HS256): access 15 min, refresh 30 jours (configurable)
+- Overlays: name + template; la couleur provient de `UserSetting.default_overlay_color`
+- Endpoints /color et /infos par utilisateur, avec fallback couleur en pause
+- Reset mot de passe par e‑mail (SMTP)
+- Déploiement Docker / Docker Compose
 
 ---
 
 ## 🚀 Démarrage rapide
 
-### Option A - Python local
+### A. Local (dev)
 
-1) Installer les dépendances
-
+1) Installer
 ```powershell
 pip install -r requirements.txt
 ```
-
-2) Variables d’environnement
-
-Reportez-vous à la section ci‑dessous « Variables d’environnement (.env commun) ».
-
-3) Lancer
-
+2) Variables d’environnement (voir plus bas). Exemple minimal: DB_*, SECRET_KEY, ENCRYPTION_KEY.
+3) Lancer en dev (reload)
 ```powershell
-python run.py
+python -m uvicorn app.asgi:app --host 0.0.0.0 --port 8765 --reload
 ```
+4) Health
+- http://localhost:8765/health
 
-4) Ouvrir l’UI
-- Accueil: http://localhost:8765/
-- Connexion: http://localhost:8765/login
-- Inscription: http://localhost:8765/register
+### B. Docker Compose
+
+docker-compose.yml fournit un service `melodyhue-backend` (port hôte 8494 par défaut). Adaptez vos variables .env puis lancez:
+```powershell
+docker compose up -d
+```
 
 ---
 
-## 🗃️ Migrations base de données
+## 🔧 Variables d’environnement (extrait)
 
-Avant d’utiliser l’API, appliquez les migrations Alembic (Flask‑Migrate) pour synchroniser le schéma avec les modèles.
+- App
+  - SECRET_KEY, ENABLE_CORS, CORS_ALLOW_ORIGINS, CORS_ALLOW_CREDENTIALS
+- DB
+  - DB_HOST, DB_DATABASE, DB_USER, DB_PASSWORD, DB_PORT
+- Auth
+  - ACCESS_TOKEN_EXPIRE_MIN (def 15), REFRESH_TOKEN_EXPIRE_DAYS (def 30), JWT_SECRET, JWT_ALG
+- SMTP (reset mdp)
+  - SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_STARTTLS=true/false, SMTP_SSL=true/false, SMTP_FROM, SMTP_FROM_NAME
+  - FRONTEND_URL ou PASSWORD_RESET_URL_BASE (ex: https://app/auth/reset?token=)
 
-- Windows (PowerShell)
-  ```powershell
-  $env:FLASK_APP = 'app:create_app'
-  .\.venv\Scripts\python.exe -m flask db upgrade heads
-  ```
-
-- Linux/macOS (bash)
-  ```bash
-  export FLASK_APP=app:create_app
-  python -m flask db upgrade heads
-  ```
-
-Notes
-- Si Alembic affiche « Multiple head revisions… », utilisez la cible `heads` comme ci‑dessus ou listez les têtes avec `flask db heads`.
-- Vous pouvez exécuter l’upgrade pendant que le serveur de dev tourne, puis recharger la page. En production, appliquez les migrations pendant une fenêtre de maintenance.
-
----
-
-### Variables d’environnement (.env commun)
-
-Ces variables sont utilisées à la fois en exécution locale et avec Docker Compose.
-
-Exemple de `.env` minimal (à la racine du projet):
-```env
-# Flask configuration
-SECRET_KEY="YOUR_SECRET_KEY"
-HOST=0.0.0.0
-PORT=8765
-FLASK_DEBUG=False
-
-# Encryption configuration
-ENCRYPTION_KEY="YOUR_ENCRYPTION_KEY"
-
-# DB configuration
-DB_HOST="your.db.host"
-DB_DATABASE="your.db.name"
-DB_USER="your.db.user"
-DB_PASSWORD="your.db.password"
-DB_PORT=3306
-
-# SMTP configuration (not used for now)
-SMTP_HOST="your.smtp.host"
-SMTP_PORT=587
-SMTP_USER="your@smtp.user"
-SMTP_PASSWORD="your.smtp.password"
-```
-
-Générer une `ENCRYPTION_KEY`
+Générer des clés
 ```powershell
+# SECRET_KEY (32 bytes hex)
+python -c "import secrets; print(secrets.token_hex(32))"
+# ENCRYPTION_KEY (Fernet)
 python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
 
-Générer une `SECRET_KEY`
-```powershell
-python -c "import secrets; print(secrets.token_hex(32))"
-```
+---
+
+## 🧭 Endpoints (aperçu)
+
+- Auth
+  - POST `/auth/register` → 200: tokens; 409 si email déjà pris
+  - POST `/auth/login` → 200: tokens ou 200 requires_2fa; 401 si identifiants invalides
+  - POST `/auth/login/2fa` → tokens (si 2FA)
+  - POST `/auth/refresh` → rotation refresh + nouveau couple tokens
+  - POST `/auth/forgot` → envoie un mail avec lien de reset
+  - POST `/auth/reset` → change le mot de passe (token valide 1h)
+
+- Overlays (privé)
+  - GET `/overlays/` — liste de vos overlays
+  - POST `/overlays/` — crée un overlay { name, template }
+  - GET `/overlays/{id}` — détail (propriétaire uniquement)
+  - PATCH `/overlays/{id}` — met à jour { name?, template? }
+  - POST `/overlays/{id}/duplicate` — duplique
+  - DELETE `/overlays/{id}` — supprime
+
+- Overlays (public)
+  - GET `/overlay/{id}` — lecture publique d’un overlay (sans auth)
+
+- Couleurs / Infos (public par utilisateur)
+  - GET `/infos/{user_id}` — couleur + infos piste; en pause, couleur = `default_overlay_color`
+  - GET `/color/{user_id}` — couleur seule; en pause, couleur = `default_overlay_color`
+
+- Paramètres utilisateur (privé)
+  - GET `/settings/me` — récupère vos préférences (incl. `default_overlay_color`)
+  - PATCH `/settings/me` — met à jour (incl. `default_overlay_color`)
 
 ---
 
-### Option A - Python local
+## � Auth & sécurité (résumé)
 
-1) Installer les dépendances
-
-```powershell
-pip install -r requirements.txt
-```
-
-2) Variables d’environnement
-```powershell
-# Copier le fichier d'exemple
-cp .env.example .env
-# ou
-copy .env.example .env
-```
-> *N'oubliez pas de remplir les variables d'environnement dans le fichier `.env` avec vos propres valeurs.*
-
-3) Lancer
-
-```powershell
-python run.py
-```
-
-4) Ouvrir l’UI
-- Accueil: http://localhost:8765/
-- Connexion: http://localhost:8765/login
-- Inscription: http://localhost:8765/register
+- Access token: 15 min (config `ACCESS_TOKEN_EXPIRE_MIN`)
+- Refresh token: 30 jours (config `REFRESH_TOKEN_EXPIRE_DAYS`), rotation à chaque refresh
+- Login: username OU email + password (usernames non uniques; email unique)
+- 2FA TOTP (optionnel) avec secret otpauth://
 
 ---
 
-### Option B - Docker Compose
+## 🎨 Overlays & couleur
 
-1) Docker Compose
-
-```yaml
-services:
-  melodyhue-backend:
-    image: ghcr.io/laxe4k/melodyhue-backend:latest
-    container_name: melodyhue-backend
-    ports:
-      - "${PORT}:${PORT}"
-    environment:
-      # Flask configuration
-      SECRET_KEY: ${SECRET_KEY}
-      HOST: ${HOST}
-      PORT: ${PORT}
-      FLASK_DEBUG: ${FLASK_DEBUG}
-
-      # Encryption configuration
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
-
-      # DB configuration
-      DB_HOST: ${DB_HOST}
-      DB_DATABASE: ${DB_DATABASE}
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_PORT: ${DB_PORT}
-
-      # SMTP configuration (not used for now)
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_PORT: ${SMTP_PORT}
-      SMTP_USER: ${SMTP_USER}
-      SMTP_PASSWORD: ${SMTP_PASSWORD}
-    volumes:
-      - spotify_data:/home/spotifyapi/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${PORT}/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    networks:
-      - spotify-network
-    restart: unless-stopped
-
-volumes:
-  spotify_data:
-```
-
-
-2) Préparer le fichier `.env`
-
-```powershell
-# Copier le fichier d'exemple
-cp .env.example .env
-# ou
-copy .env.example .env
-```
-> *N'oubliez pas de remplir les variables d'environnement dans le fichier `.env` avec vos propres valeurs.*
-
-3) Lancer
-
-```powershell
-# Si votre `.env` est à côté de `docker-compose.yml` (recommandé)
-docker compose up -d
-
-# Si votre fichier d'environnement est ailleurs
-# docker compose --env-file .env up -d
-```
-
-4) Ouvrir l’UI
-- Accueil: http://localhost:8765/
-- Connexion: http://localhost:8765/login
-- Inscription: http://localhost:8765/register
+- Un overlay = { id, name, template, created_at, updated_at }
+- La couleur ne se règle pas sur l’overlay. Elle provient de `UserSetting.default_overlay_color` et s’applique:
+  - dans `/color` et `/infos` quand la musique est en pause ou indisponible
+  - immédiatement après mise à jour via `PATCH /settings/me`
 
 ---
 
-## 🔐 Connexion Spotify (OAuth 2.0)
+## 📮 Reset mot de passe (e‑mail)
 
-1) Crée une application sur https://developer.spotify.com/dashboard
-- Ajoute les Redirect URIs nécessaires selon ton usage:
-  - Mode global: `http(s)://<host>:<port>/spotify/callback`
-  - Mode par utilisateur: `http(s)://<host>:<port>/<username>/spotify/callback` ou `http(s)://<host>:<port>/<uuid>/spotify/callback`
-  - Remarque: en mode par utilisateur, chaque utilisateur doit déclarer l’URI exacte dans SA propre app Spotify (Client ID/Secret personnels).
+1) POST `/auth/forgot` avec email → créé un token (validité 1h) et envoie un lien
+2) Le lien pointe vers votre front (config `PASSWORD_RESET_URL_BASE`, ex: `https://app/auth/reset?token=`)
+3) POST `/auth/reset` avec { token, new_password }
 
-2) Côté application
-- Crée un compte via `/register`, puis connecte-toi via `/login`
-- Ouvre `/<username>/settings` et renseigne ton `Client ID` et `Client Secret` Spotify
-- Clique “Sauvegarder”, puis “Connecter Spotify” pour autoriser l’application
-
-3) Après autorisation
-- Les tokens sont chiffrés (Fernet) et stockés en base par utilisateur (refresh token géré automatiquement)
-- “Déconnecter Spotify” révoque localement l’accès (suppression des tokens de l’app)
-
-Important
-- Ne mets PAS `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` dans `.env`. Utilise l’UI utilisateur (`/<username>/settings`) ou, en option, la config globale via les endpoints `/settings/spotify`.
+Astuce: en dev, `EMAIL_DEBUG=true` renvoie aussi le token brut dans la réponse.
 
 ---
 
-## 🔗 Endpoints
+## 🛠️ Dev
 
-- Public/ généraux
-  - GET `/` — Landing page
-  - GET `/health` — Santé + stats
-  - GET `/debug/track` — Debug
-  - Note: les routes globales `/color` et `/infos` ont été supprimées. Utilisez les routes par utilisateur: `/<username|uuid>/infos` (inclut déjà la couleur) et `/<username|uuid>/color` (plein écran/usage spécifique).
-
-- Pages (UI)
-  - GET `/login` — Page de connexion
-  - GET `/register` — Page d’inscription
-  - GET `/<username>/settings` — Page paramètres utilisateur (privée)
-
-- Auth API
-  - POST `/api/auth/login`
-  - POST `/api/auth/signup` (alias: `/api/auth/register`)
-  - POST `/logout`
-
-- Spotify / Couleurs par utilisateur
-  - GET `/<username>/color` — Couleur (supporte `?default=<hex|db|auto>`)
-  - GET `/<uuid:user_uuid>/color`
-  - GET `/<username>/infos` — Détails piste + couleur
-  - GET `/<uuid:user_uuid>/infos`
-  - GET `/<username>/nowplaying` — Page Now Playing
-  - GET `/<uuid:user_uuid>/nowplaying` — Page Now Playing (UUID)
-  - GET `/<username>/color-fullscreen` — Vue plein écran de la couleur
-  - GET `/<uuid:user_uuid>/color-fullscreen` — Vue plein écran de la couleur
-
-- OAuth Spotify par utilisateur
-  - GET `/<username>/spotify/oauth-url`
-  - GET `/<uuid:user_uuid>/spotify/oauth-url`
-  - GET `/<username>/spotify/callback`
-  - GET `/<uuid:user_uuid>/spotify/callback`
-  - POST `/<username>/spotify/logout`
-  - POST `/<uuid:user_uuid>/spotify/logout`
-
-- Paramètres utilisateur
-  - GET|POST `/<username>/settings/spotify`
-  - GET|POST `/<username>/settings/profile`
-  - GET|POST `/<username>/settings/display`
-  - GET|POST `/<uuid:user_uuid>/settings/profile`
-  - GET|POST `/<uuid:user_uuid>/settings/display`
-
-Réponses JSON standardisées (status, timestamp, etc.).
+- Lancer en dev: uvicorn avec `--reload`
+- Vérifier la DB: la création des tables et quelques migrations légères sont gérées au démarrage
+- Ports: dev 8765 (uvicorn), Docker 8494 (exposé par compose)
 
 ---
 
-## 🎨 Extraction de couleur (résumé)
+## 🤝 Contribuer
 
-- Téléchargement pochette (cache 10 images)
-- Filtrage pixels trop sombres, sélection couleur dominante par fréquence/saturation
-- Légère amplification de saturation + éclaircissement si trop sombre
-- Couleur "pause": `#53ac6a` (personnalisable)
-- Cache par track_id (TTL court) pour limiter le recalcul
+- Issues et PR bienvenues. Merci de décrire clairement le contexte, les endpoints et la reproduction.
 
----
+## 📄 Licence
 
-## 📄 Licence & Crédits
-
-Ce projet est distribué sous licence **MIT** - voir [LICENSE](LICENSE) pour les détails complets.
-
-### Contributions
-- Développé par **[Laxe4k](https://github.com/laxe4k)** avec ❤️
-- Contributions et issues bienvenues sur GitHub
-- N'hésitez pas à fork et adapter selon vos besoins
-
-### Remerciements
-- API Spotify pour l'accès aux données musicales
-- Flask pour le framework web léger et efficace
-- Communauté Python pour les excellentes librairies utilisées
-
----
-
-## ⚡ Contribuer
-
-### Comment contribuer
-- **Issues** : Signalez des bugs ou proposez des améliorations via [GitHub Issues](https://github.com/laxe4k/melodyhue-backend/issues)
-- **Pull Requests** : Fork le projet, créez une branche feature, et soumettez vos modifications
-- **Discussions** : Partagez vos idées dans les [GitHub Discussions](https://github.com/laxe4k/melodyhue-backend/discussions)
-
-### Idées d'améliorations
-- Algorithmes de couleur alternatifs (palette complète, couleurs complémentaires)
-- Webhooks pour notifier les changements de piste
-- Support d'autres plateformes musicales (Apple Music, Deezer)
-- Interface d'administration avancée
-- Métriques et analytics de l'API
-
-### Guidelines de développement
-- Suivez les conventions Python (PEP 8)
-- Ajoutez des tests pour les nouvelles fonctionnalités
-- Documentez les changements dans le changelog
-- Testez avec Docker avant de soumettre
-
----
-
-Made for fun. Enjoy 🎧
+MIT — voir [LICENSE](LICENSE).
