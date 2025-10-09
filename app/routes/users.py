@@ -36,12 +36,13 @@ def me(uid: str = Depends(get_current_user_id), db: Session = Depends(get_db)):
     u = _get_current_user(db, uid)
     out = UserOut.model_validate(u)
     out.avatar_url = gravatar_url(u.email)
-    # Couleur par défaut des overlays: préférer UserSetting.default_color_overlays
+    # Couleur par défaut des overlays: préférer UserSetting.default_overlay_color
     settings_row = db.query(UserSetting).filter(UserSetting.user_id == uid).first()
     color_default = (
-        getattr(settings_row, "default_color_overlays", None) if settings_row else None
-    ) or getattr(u, "default_color_hex", None)
-    out.default_color_hex = color_default
+        getattr(settings_row, "default_overlay_color", None) if settings_row else None
+    ) or None
+    # Renseigner le nouveau champ de sortie
+    out.default_overlay_color = color_default
     return out
 
 
@@ -53,14 +54,14 @@ def get_user_public(user_id: str, db: Session = Depends(get_db)):
     # Source de vérité: paramètres utilisateur s'ils existent
     settings_row = db.query(UserSetting).filter(UserSetting.user_id == user_id).first()
     legacy_default_color_hex = (
-        getattr(settings_row, "default_color_overlays", None) if settings_row else None
-    ) or getattr(u, "default_color_hex", None)
+        getattr(settings_row, "default_overlay_color", None) if settings_row else None
+    ) or None
     return PublicUserOut(
         id=u.id,
         username=u.username,
         created_at=u.created_at,
         avatar_url=gravatar_url(u.email),
-        default_color_hex=legacy_default_color_hex,
+        default_overlay_color=legacy_default_color_hex,
     )
 
 

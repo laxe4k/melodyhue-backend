@@ -32,13 +32,13 @@ def create_overlay(
     if not owner:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable")
     # Couleur: si non fournie, on hérite de la préférence utilisateur
-    # Priorité: settings.default_color_overlays > legacy owner.default_color_hex > valeur par défaut
+    # Priorité: settings.default_overlay_color > valeur par défaut
     from ..models.user import UserSetting  # import local pour éviter cycles
 
     settings_row = db.query(UserSetting).filter(UserSetting.user_id == uid).first()
     pref_color = (
-        getattr(settings_row, "default_color_overlays", None) if settings_row else None
-    ) or getattr(owner, "default_color_hex", None)
+        getattr(settings_row, "default_overlay_color", None) if settings_row else None
+    )
     color = body.color_hex or pref_color or "#25d865"
     ov = Overlay(owner_id=uid, name=body.name, color_hex=color)
     db.add(ov)

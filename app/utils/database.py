@@ -49,15 +49,14 @@ def create_all(BaseCls: type[DeclarativeBase] | None = None):
     """Créer les tables si elles n'existent pas (bootstrap sans Alembic)."""
     base = BaseCls or Base
     base.metadata.create_all(bind=engine)
-    # Migrations légères: ajouter la colonne default_color_overlays si manquante
+    # Migrations légères: ajouter la colonne default_overlay_color si manquante
     try:
         with engine.connect() as conn:
-            # MySQL/MariaDB information_schema check
             conn.execute(
                 text(
                     """
                 ALTER TABLE api_user_settings
-                ADD COLUMN IF NOT EXISTS default_color_overlays VARCHAR(7) DEFAULT '#25d865'
+                ADD COLUMN IF NOT EXISTS default_overlay_color VARCHAR(7) DEFAULT '#25d865'
                 """
                 )
             )
@@ -72,7 +71,7 @@ def create_all(BaseCls: type[DeclarativeBase] | None = None):
                     SELECT COUNT(*) FROM information_schema.COLUMNS
                     WHERE TABLE_SCHEMA = DATABASE()
                       AND TABLE_NAME = 'api_user_settings'
-                      AND COLUMN_NAME = 'default_color_overlays'
+                      AND COLUMN_NAME = 'default_overlay_color'
                     """
                     )
                 )
@@ -80,7 +79,7 @@ def create_all(BaseCls: type[DeclarativeBase] | None = None):
                 if count == 0:
                     conn.execute(
                         text(
-                            "ALTER TABLE api_user_settings ADD COLUMN default_color_overlays VARCHAR(7) DEFAULT '#25d865'"
+                            "ALTER TABLE api_user_settings ADD COLUMN default_overlay_color VARCHAR(7) DEFAULT '#25d865'"
                         )
                     )
                     conn.commit()

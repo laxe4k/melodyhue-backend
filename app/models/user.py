@@ -18,10 +18,6 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(16), default="user")
-
-    default_color_hex: Mapped[Optional[str]] = mapped_column(
-        String(7), default="#25d865"
-    )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -130,8 +126,8 @@ class UserSetting(Base):
         String(16), default="gravatar"
     )  # gravatar|initials
     avatar_color: Mapped[str] = mapped_column(String(7), default="#25d865")
-    # Couleur par défaut pour la création d'overlays (nouvelle source de vérité)
-    default_color_overlays: Mapped[str] = mapped_column(String(7), default="#25d865")
+    # Couleur par défaut pour la création d'overlays (source de vérité)
+    default_overlay_color: Mapped[str] = mapped_column(String(7), default="#25d865")
 
 
 class LoginChallenge(Base):

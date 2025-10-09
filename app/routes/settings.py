@@ -24,19 +24,13 @@ def get_settings(
     s = _get_or_create(db, uid)
     u = db.query(User).filter(User.id == uid).first()
     # Déterminer la couleur par défaut des overlays
-    # Préférence: s.default_color_overlays, sinon héritage legacy depuis User.default_color_hex
-    color_default = (
-        getattr(s, "default_color_overlays", None)
-        or getattr(u, "default_color_hex", None)
-        or "#25d865"
-    )
+    # Source: s.default_overlay_color, fallback legacy éventuels
+    color_default = getattr(s, "default_overlay_color", None) or "#25d865"
     return {
         "theme": s.theme,
         "layout": s.layout,
-        # Renvoi conservant le nom historique pour compatibilité API
-        "default_color_hex": color_default,
-        # Nouveau nom explicite
-        "default_color_overlays": color_default,
+        # Nom final de l'API
+        "default_overlay_color": color_default,
         "avatar_mode": getattr(s, "avatar_mode", "gravatar"),
         "avatar_color": getattr(s, "avatar_color", "#25d865"),
     }
@@ -53,38 +47,24 @@ def update_settings(
     for key in ["theme", "layout", "avatar_mode", "avatar_color"]:
         if key in payload and isinstance(payload[key], str):
             setattr(s, key, payload[key])
-    # Gérer la couleur par défaut des overlays: nouvelle source -> UserSetting.default_color_overlays
+    # Gérer la couleur par défaut des overlays: UserSetting.default_overlay_color
     u = db.query(User).filter(User.id == uid).first()
     new_color = None
-    # Noms acceptés: nouveau "default_color_overlays", compat "default_color_hex" et "default_overlay_color"
-    for k in ("default_color_overlays", "default_color_hex", "default_overlay_color"):
+    # Noms acceptés: final "default_overlay_color", compat "default_color_hex" et "default_color_overlays"
+    for k in ("default_overlay_color", "default_color_overlays", "default_color_hex"):
         if isinstance(payload.get(k), str):
             new_color = payload[k]
             break
     if new_color:
-        setattr(s, "default_color_overlays", new_color)
-        # Optionnel: mettre à jour aussi l'ancien champ s'il existait côté User pour compat extraction Spotify
-        if u is not None:
-            try:
-                u.default_color_hex = new_color
-                db.add(u)
-            except Exception:
-                pass
+        setattr(s, "default_overlay_color", new_color)
     db.add(s)
     db.commit()
     db.refresh(s)
-    if u:
-        db.refresh(u)
-    color_default = (
-        getattr(s, "default_color_overlays", None)
-        or getattr(u, "default_color_hex", None)
-        or "#25d865"
-    )
+    color_default = getattr(s, "default_overlay_color", None) or "#25d865"
     return {
         "theme": s.theme,
         "layout": s.layout,
-        "default_color_hex": color_default,
-        "default_color_overlays": color_default,
+        "default_overlay_color": color_default,
         "avatar_mode": getattr(s, "avatar_mode", "gravatar"),
         "avatar_color": getattr(s, "avatar_color", "#25d865"),
     }

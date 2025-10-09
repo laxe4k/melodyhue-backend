@@ -36,11 +36,8 @@ class AppState:
             # Paramétrer la couleur de secours depuis les settings utilisateur (prioritaire)
             from app.models.user import UserSetting
 
-            u = db.query(User).filter(User.id == user_id).first()
             s = db.query(UserSetting).filter(UserSetting.user_id == user_id).first()
-            default_hex = (
-                getattr(s, "default_color_overlays", None) if s else None
-            ) or (getattr(u, "default_color_hex", None) if u else None)
+            default_hex = getattr(s, "default_overlay_color", None) if s else None
             if default_hex:
                 extractor.set_default_fallback_hex(default_hex)
 
