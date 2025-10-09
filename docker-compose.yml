@@ -6,33 +6,29 @@ services:
     container_name: "${container_name}"
     restart: unless-stopped
     ports:
-      - "${PORT:-8494}:${PORT:-8494}"
+      - "8494:8494"
     environment:
       SECRET_KEY: "${SECRET_KEY}"
-      HOST: "0.0.0.0"
-      PORT: "${PORT:-8494}"
-      FLASK_DEBUG: "${FLASK_DEBUG:-false}"
-
+      ENABLE_CORS: "${ENABLE_CORS:-true}"
+      CORS_ALLOW_ORIGINS: "${CORS_ALLOW_ORIGINS--http://melodyhue.com}"
+      CORS_ALLOW_CREDENTIALS: "${CORS_ALLOW_CREDENTIALS:-true}"
       ENCRYPTION_KEY: "${ENCRYPTION_KEY}"
-      SPOTIFY_REDIRECT_URI: "${SPOTIFY_REDIRECT_URI:-}"
-
       DB_HOST: "${DB_HOST}"
       DB_DATABASE: "${DB_DATABASE}"
       DB_USER: "${DB_USER}"
       DB_PASSWORD: "${DB_PASSWORD}"
       DB_PORT: "${DB_PORT:-5432}"
-
       SMTP_HOST: "${SMTP_HOST:-}"
       SMTP_PORT: "${SMTP_PORT:-}"
       SMTP_USER: "${SMTP_USER:-}"
       SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
     volumes:
-      - spotify_data:/home/spotifyapi/data
+      - melodyhue_data:/home/melodyhue/data
     networks:
-      - spotify-network
+      - melodyhue-network
 
 volumes:
-  spotify_data:
+  melodyhue_data:
 
 networks:
-  spotify-network: {}
+  melodyhue-network: {}
