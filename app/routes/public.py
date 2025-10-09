@@ -3,6 +3,8 @@ import time
 from sqlalchemy.orm import Session
 from ..services.state import get_state
 from ..utils.database import get_db
+from ..models.user import Overlay
+from ..schemas.overlay import OverlayOut
 
 router = APIRouter()
 
@@ -51,3 +53,15 @@ async def color(user_id: str, db: Session = Depends(get_db)):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get(
+    "/overlay/{overlay_id}", summary="Public overlay", response_model=OverlayOut
+)
+async def get_public_overlay(overlay_id: str, db: Session = Depends(get_db)):
+    """Endpoint public (sans auth) pour récupérer un overlay par son ID.
+    Ne renvoie pas d'informations sensibles (pas d'owner_id)."""
+    ov = db.query(Overlay).filter(Overlay.id == overlay_id).first()
+    if not ov:
+        raise HTTPException(status_code=404, detail="Overlay introuvable")
+    return ov

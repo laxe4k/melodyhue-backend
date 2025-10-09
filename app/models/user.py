@@ -49,7 +49,15 @@ class Overlay(Base):
         String(32), ForeignKey("api_users.id"), index=True
     )
     name: Mapped[str] = mapped_column(String(120), default="Overlay")
+    # Couleur historique conservée pour compat DB, mais non utilisée par l'API de sortie
     color_hex: Mapped[str] = mapped_column(String(7), default="#25d865")
+    # Nouveau: choix du template et du style (apparence)
+    template: Mapped[str] = mapped_column(
+        String(32), default="classic"
+    )  # classic|compact|wave|cards
+    style: Mapped[str] = mapped_column(
+        String(32), default="light"
+    )  # light|dark|glass|neon
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow

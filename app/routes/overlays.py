@@ -31,16 +31,8 @@ def create_overlay(
     owner = db.query(User).filter(User.id == uid).first()
     if not owner:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable")
-    # Couleur: si non fournie, on hérite de la préférence utilisateur
-    # Priorité: settings.default_overlay_color > valeur par défaut
-    from ..models.user import UserSetting  # import local pour éviter cycles
-
-    settings_row = db.query(UserSetting).filter(UserSetting.user_id == uid).first()
-    pref_color = (
-        getattr(settings_row, "default_overlay_color", None) if settings_row else None
-    )
-    color = body.color_hex or pref_color or "#25d865"
-    ov = Overlay(owner_id=uid, name=body.name, color_hex=color)
+    # Ne pas accepter de couleur côté overlay: utiliser la couleur par défaut utilisateur
+    ov = Overlay(owner_id=uid, name=body.name, template=body.template)
     db.add(ov)
     db.commit()
     db.refresh(ov)
@@ -79,8 +71,8 @@ def update_overlay(
         raise HTTPException(status_code=404, detail="Overlay introuvable")
     if body.name is not None:
         ov.name = body.name
-    if body.color_hex is not None:
-        ov.color_hex = body.color_hex
+    if body.template is not None:
+        ov.template = body.template
     db.add(ov)
     db.commit()
     db.refresh(ov)
@@ -100,7 +92,7 @@ def duplicate_overlay(
     )
     if not ov:
         raise HTTPException(status_code=404, detail="Overlay introuvable")
-    dup = Overlay(owner_id=uid, name=f"{ov.name} (copy)", color_hex=ov.color_hex)
+    dup = Overlay(owner_id=uid, name=f"{ov.name} (copy)", template=ov.template)
     db.add(dup)
     db.commit()
     db.refresh(dup)

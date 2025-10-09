@@ -49,7 +49,7 @@ def create_all(BaseCls: type[DeclarativeBase] | None = None):
     """Créer les tables si elles n'existent pas (bootstrap sans Alembic)."""
     base = BaseCls or Base
     base.metadata.create_all(bind=engine)
-    # Migrations légères: ajouter la colonne default_overlay_color si manquante
+    # Migrations légères: ajouter des colonnes si manquantes
     try:
         with engine.connect() as conn:
             conn.execute(
@@ -57,6 +57,22 @@ def create_all(BaseCls: type[DeclarativeBase] | None = None):
                     """
                 ALTER TABLE api_user_settings
                 ADD COLUMN IF NOT EXISTS default_overlay_color VARCHAR(7) DEFAULT '#25d865'
+                """
+                )
+            )
+            conn.execute(
+                text(
+                    """
+                ALTER TABLE api_overlays
+                ADD COLUMN IF NOT EXISTS template VARCHAR(32) DEFAULT 'classic'
+                """
+                )
+            )
+            conn.execute(
+                text(
+                    """
+                ALTER TABLE api_overlays
+                ADD COLUMN IF NOT EXISTS style VARCHAR(32) DEFAULT 'light'
                 """
                 )
             )
@@ -83,6 +99,34 @@ def create_all(BaseCls: type[DeclarativeBase] | None = None):
                         )
                     )
                     conn.commit()
+
+                # Vérifier et ajouter les colonnes template/style si absentes
+                def ensure_col(table: str, column: str, ddl: str):
+                    res = conn.execute(
+                        text(
+                            f"""
+                        SELECT COUNT(*) FROM information_schema.COLUMNS
+                        WHERE TABLE_SCHEMA = DATABASE()
+                          AND TABLE_NAME = '{table}'
+                          AND COLUMN_NAME = '{column}'
+                        """
+                        )
+                    )
+                    cnt = res.scalar() if hasattr(res, "scalar") else list(res)[0][0]
+                    if cnt == 0:
+                        conn.execute(text(ddl))
+                        conn.commit()
+
+                ensure_col(
+                    "api_overlays",
+                    "template",
+                    "ALTER TABLE api_overlays ADD COLUMN template VARCHAR(32) DEFAULT 'classic'",
+                )
+                ensure_col(
+                    "api_overlays",
+                    "style",
+                    "ALTER TABLE api_overlays ADD COLUMN style VARCHAR(32) DEFAULT 'light'",
+                )
         except Exception:
             # Laisser passer: l'app fonctionnera mais la colonne devra être ajoutée manuellement
             pass
