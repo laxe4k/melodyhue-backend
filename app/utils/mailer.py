@@ -70,7 +70,7 @@ def build_password_reset_link(raw_token: str) -> str:
     """Construit l'URL de réinitialisation. Priorité:
     - PASSWORD_RESET_URL_BASE (ex: https://app/auth/reset?token=)
     - FRONTEND_URL + "/auth/reset?token="
-    - http://localhost:5173/auth/reset?token=
+    - http://melodyhue.com/auth/reset?token=
     """
     base = os.getenv("PASSWORD_RESET_URL_BASE")
     if not base:
@@ -80,5 +80,5 @@ def build_password_reset_link(raw_token: str) -> str:
                 fe = fe[:-1]
             base = f"{fe}/auth/reset?token="
         else:
-            base = "http://localhost:5173/auth/reset?token="
+            base = "http://melodyhue.com/auth/reset?token="
     return f"{base}{raw_token}"
