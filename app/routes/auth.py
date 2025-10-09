@@ -19,6 +19,7 @@ from ..schemas.user import TwoFASetupOut, TwoFAVerifyIn, UserOut
 from ..utils.security import decode_token
 from ..utils.auth_dep import get_current_user_id
 from ..models.user import User, PasswordReset
+from ..utils.mailer import send_email, build_password_reset_link
 
 router = APIRouter()
 ctrl = AuthController()
@@ -154,10 +155,25 @@ def forgot_password(body: ForgotPwdIn, db: Session = Depends(get_db)):
     )
     db.add(pr)
     db.commit()
-    # TODO: send email with raw token link
+    # Envoi email avec lien de réinitialisation
+    reset_link = build_password_reset_link(raw)
+    subj = "Réinitialisation de votre mot de passe"
+    txt = (
+        "Bonjour,\n\n"
+        "Nous avons reçu une demande de réinitialisation de mot de passe pour votre compte MelodyHue.\n"
+        f"Cliquez sur ce lien pour réinitialiser votre mot de passe (valide 1h):\n{reset_link}\n\n"
+        "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.\n"
+    )
+    html = (
+        f"<p>Bonjour,</p><p>Pour réinitialiser votre mot de passe MelodyHue, cliquez sur le lien ci-dessous (valide 1h):</p>"
+        f'<p><a href="{reset_link}">Réinitialiser mon mot de passe</a></p>'
+        f"<p>Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>"
+    )
+    sent = send_email(u.email, subj, txt, html)
     if os.getenv("EMAIL_DEBUG", "false").lower() == "true":
-        return {"status": "sent", "token": raw}
-    return {"status": "sent"}
+        # Retourner aussi le token brut en mode debug
+        return {"status": "sent", "token": raw, "email_sent": bool(sent)}
+    return {"status": "sent", "email_sent": bool(sent)}
 
 
 @router.post("/reset")
