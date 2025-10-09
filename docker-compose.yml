@@ -9,8 +9,9 @@ services:
       - "8494:8494"
     environment:
       SECRET_KEY: "${SECRET_KEY}"
-      HOST: "0.0.0.0"
-      PORT: "8494"
+      ENABLE_CORS: "${ENABLE_CORS:-false}"
+      CORS_ALLOW_ORIGINS: "${CORS_ALLOW_ORIGINS:-}"
+      CORS_ALLOW_CREDENTIALS: "${CORS_ALLOW_CREDENTIALS:-}"
       ENCRYPTION_KEY: "${ENCRYPTION_KEY}"
       DB_HOST: "${DB_HOST}"
       DB_DATABASE: "${DB_DATABASE}"
