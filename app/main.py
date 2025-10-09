@@ -3,7 +3,7 @@ import os
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routes import public, auth, users, overlays, settings
+from .routes import public, auth, users, overlays, settings, spotify
 from .services.state import get_state
 from .utils.database import create_all
 
@@ -13,14 +13,26 @@ logging.basicConfig(level=log_level, format="%(asctime)s - %(levelname)s - %(mes
 
 app = FastAPI(title="MelodyHue API", version=os.getenv("APP_VERSION", "4.0.0"))
 
-# CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS (configurable)
+if os.getenv("ENABLE_CORS", "false").lower() == "true":
+    origins_env = os.getenv("CORS_ALLOW_ORIGINS", "").strip()
+    # Liste d'origines séparées par des virgules
+    allow_origins = [o.strip() for o in origins_env.split(",") if o.strip()] or ["*"]
+    allow_credentials = os.getenv("CORS_ALLOW_CREDENTIALS", "false").lower() == "true"
+    # Si wildcard et credentials=true, les navigateurs refusent: forcer credentials à false
+    if "*" in allow_origins and allow_credentials:
+        logging.warning(
+            "CORS: '*' avec credentials=true n'est pas supporté par les navigateurs; credentials sera forcé à false."
+        )
+        allow_credentials = False
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allow_origins,
+        allow_credentials=allow_credentials,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 state = get_state()
 
@@ -36,6 +48,7 @@ app.include_router(
 app.include_router(
     settings.router, prefix="/settings", tags=["settings"]
 )  # user settings
+app.include_router(spotify.router, prefix="/spotify", tags=["spotify"])
 
 
 @app.on_event("startup")

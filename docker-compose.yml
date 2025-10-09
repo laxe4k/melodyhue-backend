@@ -9,10 +9,10 @@ services:
       - "8494:8494"
     environment:
       SECRET_KEY: "${SECRET_KEY}"
-      HOST: "0.0.0.0"
-      PORT: "8494"
+      ENABLE_CORS: "${ENABLE_CORS:-true}"
+      CORS_ALLOW_ORIGINS: "${CORS_ALLOW_ORIGINS--http://melodyhue.com}"
+      CORS_ALLOW_CREDENTIALS: "${CORS_ALLOW_CREDENTIALS:-true}"
       ENCRYPTION_KEY: "${ENCRYPTION_KEY}"
-      SPOTIFY_REDIRECT_URI: "${SPOTIFY_REDIRECT_URI:-}"
       DB_HOST: "${DB_HOST}"
       DB_DATABASE: "${DB_DATABASE}"
       DB_USER: "${DB_USER}"

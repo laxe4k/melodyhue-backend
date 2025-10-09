@@ -30,7 +30,26 @@ class SpotifyColorExtractor:
 
         self.stats = {"requests": 0, "cache_hits": 0, "extractions": 0, "errors": 0}
         self.verbose_logs = os.getenv("VERBOSE_SPOTIFY_LOGS", "false").lower() == "true"
+        # Couleur de secours par défaut (peut être remplacée par utilisateur)
+        self.default_fallback_rgb = (0x25, 0xD8, 0x65)  # #25d865
         self.start_monitoring()
+
+    def set_default_fallback_hex(self, hex_color: str | None):
+        try:
+            if not hex_color or not isinstance(hex_color, str):
+                return
+            s = hex_color.strip()
+            if s.startswith("#"):
+                s = s[1:]
+            if len(s) != 6:
+                return
+            r = int(s[0:2], 16)
+            g = int(s[2:4], 16)
+            b = int(s[4:6], 16)
+            self.default_fallback_rgb = (r, g, b)
+        except Exception:
+            # Ne pas interrompre si parsing échoue
+            pass
 
     def start_monitoring(self):
         if self.monitoring_thread and self.monitoring_thread.is_alive():
@@ -116,7 +135,8 @@ class SpotifyColorExtractor:
         self.stats["requests"] += 1
         track_info = self.spotify_client.get_current_track()
         if track_info and not track_info.get("is_playing", False):
-            return (83, 172, 106)
+            # Rien en lecture: renvoyer la couleur par défaut configurée
+            return self._get_fallback_color()
 
         cache_key = f"color_{self.current_track_id}"
         if (
@@ -151,10 +171,8 @@ class SpotifyColorExtractor:
             return self._get_fallback_color()
 
     def _get_fallback_color(self):
-        for key in self.color_cache:
-            if key.startswith("color_"):
-                return self.color_cache[key]
-        return (255, 0, 150)
+        # Utiliser la couleur par défaut (paramétrable par utilisateur)
+        return self.default_fallback_rgb
 
     def get_current_track_info(self):
         return self.spotify_client.get_current_track()

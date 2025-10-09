@@ -6,9 +6,23 @@ class UserOut(BaseModel):
     id: str
     username: str
     email: EmailStr
+    role: str = "user"
     created_at: datetime
     last_login_at: datetime | None
     avatar_url: str | None = None
+    # Couleur par défaut des overlays
+    default_overlay_color: str | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class PublicUserOut(BaseModel):
+    id: str
+    username: str
+    created_at: datetime
+    avatar_url: str | None = None
+    default_overlay_color: str | None = None
 
     class Config:
         from_attributes = True

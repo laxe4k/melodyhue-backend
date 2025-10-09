@@ -13,6 +13,7 @@ from ..schemas.auth import (
     ResetPwdIn,
     LoginStep1Out,
     Login2FAIn,
+    LoginTokensOut,
 )
 from ..schemas.user import TwoFASetupOut, TwoFAVerifyIn, UserOut
 from ..utils.security import decode_token
@@ -23,18 +24,33 @@ router = APIRouter()
 ctrl = AuthController()
 
 
-@router.post("/register", response_model=UserOut)
+@router.post("/register", response_model=LoginTokensOut)
 def register(payload: RegisterIn, db: Session = Depends(get_db)):
     try:
         u = ctrl.register(db, payload.username, payload.email, payload.password)
-        return u
+        # Considéré comme connecté après inscription: maj last_login_at
+        u.last_login_at = datetime.utcnow()
+        db.add(u)
+        db.commit()
+        db.refresh(u)
+        # Émettre directement les tokens comme pour un login sans 2FA
+        access, refresh = ctrl._issue_tokens(db, u)
+        return LoginTokensOut(
+            access_token=access,
+            refresh_token=refresh,
+            token_type="bearer",
+            requires_2fa=False,
+            ticket=None,
+            role=getattr(u, "role", "user"),
+            user_id=u.id,
+        )
     except ValueError as e:
         if str(e) == "username_or_email_taken":
             raise HTTPException(status_code=409, detail="Username ou email déjà pris")
         raise
 
 
-@router.post("/login", response_model=LoginStep1Out)
+@router.post("/login", response_model=LoginTokensOut | LoginStep1Out)
 def login_step1(payload: LoginIn, db: Session = Depends(get_db)):
     try:
         u, ticket = ctrl.login_step1(db, payload.username_or_email, payload.password)
@@ -43,8 +59,18 @@ def login_step1(payload: LoginIn, db: Session = Depends(get_db)):
         # Pas de 2FA: on émet les tokens directement
         from ..controllers.auth_controller import AuthController
 
+        # Rôle: default "user" (pas de champ role en DB pour l'instant)
+        role = "user"
         access, refresh = AuthController()._issue_tokens(db, u)
-        return {"requires_2fa": False, "ticket": None, "access_token": access, "refresh_token": refresh, "token_type": "bearer"}  # type: ignore
+        return LoginTokensOut(
+            access_token=access,
+            refresh_token=refresh,
+            token_type="bearer",
+            requires_2fa=False,
+            ticket=None,
+            role=role,
+            user_id=u.id,
+        )
     except ValueError as e:
         code = str(e)
         if code == "invalid_credentials":
@@ -55,11 +81,13 @@ def login_step1(payload: LoginIn, db: Session = Depends(get_db)):
 @router.post("/login/2fa", response_model=TokenPair)
 def login_step2_totp(body: Login2FAIn, db: Session = Depends(get_db)):
     try:
-        _, access, refresh = ctrl.login_step2_totp(db, body.ticket, body.totp)
+        u, access, refresh = ctrl.login_step2_totp(db, body.ticket, body.totp)
         return {
             "access_token": access,
             "refresh_token": refresh,
             "token_type": "bearer",
+            "user_id": u.id,
+            "role": getattr(u, "role", "user"),
         }
     except ValueError as e:
         code = str(e)
