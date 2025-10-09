@@ -77,6 +77,26 @@ def create_all(BaseCls: type[DeclarativeBase] | None = None):
                 )
             )
             conn.commit()
+            # Supprimer une éventuelle contrainte unique sur api_users.username
+            try:
+                # MySQL/MariaDB: trouver l'index unique et le supprimer
+                res = conn.execute(
+                    text(
+                        """
+                    SELECT INDEX_NAME FROM information_schema.STATISTICS
+                    WHERE TABLE_SCHEMA = DATABASE()
+                      AND TABLE_NAME = 'api_users'
+                      AND COLUMN_NAME = 'username'
+                      AND NON_UNIQUE = 0
+                    """
+                    )
+                )
+                unique_indexes = [row[0] for row in res]
+                for idx in unique_indexes:
+                    conn.execute(text(f"ALTER TABLE api_users DROP INDEX {idx}"))
+                conn.commit()
+            except Exception:
+                pass
     except Exception:
         # Compat MySQL versions without IF NOT EXISTS on ADD COLUMN
         try:
@@ -127,6 +147,25 @@ def create_all(BaseCls: type[DeclarativeBase] | None = None):
                     "style",
                     "ALTER TABLE api_overlays ADD COLUMN style VARCHAR(32) DEFAULT 'light'",
                 )
+                # Supprimer unique sur username si présent (fallback)
+                try:
+                    res = conn.execute(
+                        text(
+                            """
+                        SELECT INDEX_NAME FROM information_schema.STATISTICS
+                        WHERE TABLE_SCHEMA = DATABASE()
+                          AND TABLE_NAME = 'api_users'
+                          AND COLUMN_NAME = 'username'
+                          AND NON_UNIQUE = 0
+                        """
+                        )
+                    )
+                    unique_indexes = [row[0] for row in res]
+                    for idx in unique_indexes:
+                        conn.execute(text(f"ALTER TABLE api_users DROP INDEX {idx}"))
+                    conn.commit()
+                except Exception:
+                    pass
         except Exception:
             # Laisser passer: l'app fonctionnera mais la colonne devra être ajoutée manuellement
             pass

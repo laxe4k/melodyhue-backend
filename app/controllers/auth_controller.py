@@ -16,12 +16,9 @@ from ..utils.security import (
 
 class AuthController:
     def register(self, db: Session, username: str, email: str, password: str) -> User:
-        if (
-            db.query(User)
-            .filter((User.username == username) | (User.email == email))
-            .first()
-        ):
-            raise ValueError("username_or_email_taken")
+        # Unicité sur l'email uniquement; usernames peuvent être dupliqués
+        if db.query(User).filter(User.email == email).first():
+            raise ValueError("email_taken")
         u = User(username=username, email=email, password_hash=hash_password(password))
         db.add(u)
         db.commit()

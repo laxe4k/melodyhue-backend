@@ -45,8 +45,8 @@ def register(payload: RegisterIn, db: Session = Depends(get_db)):
             user_id=u.id,
         )
     except ValueError as e:
-        if str(e) == "username_or_email_taken":
-            raise HTTPException(status_code=409, detail="Username ou email déjà pris")
+        if str(e) == "email_taken":
+            raise HTTPException(status_code=409, detail="Email déjà pris")
         raise
 
 

@@ -14,7 +14,8 @@ class User(Base):
         String(32), primary_key=True, default=new_short_uuid
     )
     # Champs principaux
-    username: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+    # Le username peut être dupliqué; seule l'email doit rester unique
+    username: Mapped[str] = mapped_column(String(80), index=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(16), default="user")
