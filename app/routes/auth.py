@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response, Request, Body
 from datetime import datetime, timedelta
 import secrets, hashlib, os
 from sqlalchemy.orm import Session
@@ -25,13 +25,14 @@ from ..utils.mailer import (
     build_password_reset_link,
     build_twofa_disable_link,
 )
+from ..utils.cookies import set_access_cookie, set_refresh_cookie, clear_auth_cookies
 
 router = APIRouter()
 ctrl = AuthController()
 
 
 @router.post("/register", response_model=LoginTokensOut)
-def register(payload: RegisterIn, db: Session = Depends(get_db)):
+def register(payload: RegisterIn, resp: Response, db: Session = Depends(get_db)):
     try:
         u = ctrl.register(db, payload.username, payload.email, payload.password)
         # Considéré comme connecté après inscription: maj last_login_at
@@ -41,6 +42,9 @@ def register(payload: RegisterIn, db: Session = Depends(get_db)):
         db.refresh(u)
         # Émettre directement les tokens comme pour un login sans 2FA
         access, refresh = ctrl._issue_tokens(db, u)
+        # Set HttpOnly cookies
+        set_access_cookie(resp, access)
+        set_refresh_cookie(resp, refresh)
         return LoginTokensOut(
             access_token=access,
             refresh_token=refresh,
@@ -57,7 +61,7 @@ def register(payload: RegisterIn, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=LoginTokensOut | LoginStep1Out)
-def login_step1(payload: LoginIn, db: Session = Depends(get_db)):
+def login_step1(payload: LoginIn, resp: Response, db: Session = Depends(get_db)):
     try:
         u, ticket = ctrl.login_step1(db, payload.username_or_email, payload.password)
         if ticket:
@@ -68,6 +72,8 @@ def login_step1(payload: LoginIn, db: Session = Depends(get_db)):
         # Rôle: default "user" (pas de champ role en DB pour l'instant)
         role = "user"
         access, refresh = AuthController()._issue_tokens(db, u)
+        set_access_cookie(resp, access)
+        set_refresh_cookie(resp, refresh)
         return LoginTokensOut(
             access_token=access,
             refresh_token=refresh,
@@ -85,9 +91,11 @@ def login_step1(payload: LoginIn, db: Session = Depends(get_db)):
 
 
 @router.post("/login/2fa", response_model=TokenPair)
-def login_step2_totp(body: Login2FAIn, db: Session = Depends(get_db)):
+def login_step2_totp(body: Login2FAIn, resp: Response, db: Session = Depends(get_db)):
     try:
         u, access, refresh = ctrl.login_step2_totp(db, body.ticket, body.totp)
+        set_access_cookie(resp, access)
+        set_refresh_cookie(resp, refresh)
         return {
             "access_token": access,
             "refresh_token": refresh,
@@ -107,9 +115,24 @@ def login_step2_totp(body: Login2FAIn, db: Session = Depends(get_db)):
 
 
 @router.post("/refresh", response_model=TokenPair)
-def refresh(payload: RefreshIn, db: Session = Depends(get_db)):
+def refresh(
+    request: Request,
+    resp: Response,
+    db: Session = Depends(get_db),
+    payload: RefreshIn | None = Body(None),
+):
     try:
-        access, refresh = ctrl.refresh(db, payload.refresh_token)
+        # Get refresh token from body or HttpOnly cookie
+        rt = (
+            payload.refresh_token
+            if payload
+            else request.cookies.get("mh_refresh_token")
+        )
+        if not rt:
+            raise ValueError("missing_refresh_token")
+        access, refresh = ctrl.refresh(db, rt)
+        set_access_cookie(resp, access)
+        set_refresh_cookie(resp, refresh)
         return {
             "access_token": access,
             "refresh_token": refresh,
@@ -275,3 +298,9 @@ def twofa_disable_confirm_get(token: str, db: Session = Depends(get_db)):
         if code == "user_not_found":
             raise HTTPException(status_code=404, detail="Utilisateur introuvable")
         raise
+
+
+@router.post("/logout")
+def logout(resp: Response):
+    clear_auth_cookies(resp)
+    return {"status": "ok"}

@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 from .security import decode_token
@@ -6,13 +6,18 @@ from .database import get_db
 from ..models.user import User
 
 
-bearer_scheme = HTTPBearer(auto_error=True)
+# Allow absence of Authorization header; we'll fallback to cookies
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def get_current_payload(
-    creds: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    request: Request,
+    creds: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> dict:
-    token = creds.credentials
+    # Prefer Authorization header; fallback to HttpOnly cookies
+    token = creds.credentials if creds else request.cookies.get("mh_access_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="Invalid token")
     try:
         return decode_token(token)
     except Exception:
