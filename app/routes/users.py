@@ -43,6 +43,8 @@ def me(uid: str = Depends(get_current_user_id), db: Session = Depends(get_db)):
     ) or None
     # Renseigner le nouveau champ de sortie
     out.default_overlay_color = color_default
+    tfa = db.query(TwoFA).filter(TwoFA.user_id == uid).first()
+    out.twofa_enabled = bool(tfa and getattr(tfa, "verified_at", None))
     return out
 
 

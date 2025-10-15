@@ -82,3 +82,21 @@ def build_password_reset_link(raw_token: str) -> str:
         else:
             base = "http://melodyhue.com/auth/reset?token="
     return f"{base}{raw_token}"
+
+
+def build_twofa_disable_link(raw_token: str) -> str:
+    """Construit l'URL de désactivation 2FA. Priorité:
+    - TWOFA_DISABLE_URL_BASE (ex: https://app/auth/2fa/disable?token=)
+    - FRONTEND_URL + "/auth/2fa/disable?token="
+    - http://melodyhue.com/auth/2fa/disable?token=
+    """
+    base = os.getenv("TWOFA_DISABLE_URL_BASE")
+    if not base:
+        fe = os.getenv("FRONTEND_URL")
+        if fe:
+            if fe.endswith("/"):
+                fe = fe[:-1]
+            base = f"{fe}/auth/2fa/disable?token="
+        else:
+            base = "http://melodyhue.com/auth/2fa/disable?token="
+    return f"{base}{raw_token}"

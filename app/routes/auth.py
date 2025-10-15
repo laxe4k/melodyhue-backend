@@ -14,12 +14,17 @@ from ..schemas.auth import (
     LoginStep1Out,
     Login2FAIn,
     LoginTokensOut,
+    TwoFADisableConfirmIn,
 )
 from ..schemas.user import TwoFASetupOut, TwoFAVerifyIn, UserOut
 from ..utils.security import decode_token
 from ..utils.auth_dep import get_current_user_id
 from ..models.user import User, PasswordReset
-from ..utils.mailer import send_email, build_password_reset_link
+from ..utils.mailer import (
+    send_email,
+    build_password_reset_link,
+    build_twofa_disable_link,
+)
 
 router = APIRouter()
 ctrl = AuthController()
@@ -138,6 +143,27 @@ def twofa_verify(
     return {"status": "ok"}
 
 
+@router.post("/2fa/disable")
+def twofa_disable(
+    body: TwoFAVerifyIn,
+    uid: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    u = db.query(User).filter(User.id == uid).first()
+    if not u:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+    try:
+        ctrl.disable_2fa(db, u, body.code)
+        return {"status": "disabled"}
+    except ValueError as e:
+        code = str(e)
+        if code == "twofa_not_enabled":
+            raise HTTPException(status_code=400, detail="2FA non activée")
+        if code == "invalid_code":
+            raise HTTPException(status_code=400, detail="Code invalide")
+        raise
+
+
 # Password reset placeholders (token storage and email delivery to be implemented)
 @router.post("/forgot")
 def forgot_password(body: ForgotPwdIn, db: Session = Depends(get_db)):
@@ -193,3 +219,59 @@ def reset_password(body: ResetPwdIn, db: Session = Depends(get_db)):
     db.add(pr)
     db.commit()
     return {"status": "ok"}
+
+
+@router.post("/2fa/disable/request")
+def twofa_disable_request(
+    uid: str = Depends(get_current_user_id), db: Session = Depends(get_db)
+):
+    u = db.query(User).filter(User.id == uid).first()
+    if not u:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+    raw = ctrl.request_twofa_disable(db, u)
+    link = build_twofa_disable_link(raw)
+    subj = "Désactivation 2FA - Confirmation requise"
+    txt = (
+        "Bonjour,\n\n"
+        "Vous avez demandé la désactivation de la double authentification (2FA) sur votre compte MelodyHue.\n"
+        f"Si vous êtes à l'origine de cette demande, cliquez sur ce lien pour confirmer (valide 1h):\n{link}\n\n"
+        "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.\n"
+    )
+    html = (
+        f"<p>Bonjour,</p><p>Vous avez demandé la désactivation de la double authentification (2FA) sur votre compte MelodyHue.</p>"
+        f"<p>Si vous êtes à l'origine de cette demande, cliquez sur le lien ci-dessous (valide 1h):</p>"
+        f'<p><a href="{link}">Confirmer la désactivation 2FA</a></p>'
+        f"<p>Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>"
+    )
+    sent = send_email(u.email, subj, txt, html)
+    if os.getenv("EMAIL_DEBUG", "false").lower() == "true":
+        return {"status": "sent", "token": raw, "email_sent": bool(sent)}
+    return {"status": "sent", "email_sent": bool(sent)}
+
+
+@router.post("/2fa/disable/confirm")
+def twofa_disable_confirm(body: TwoFADisableConfirmIn, db: Session = Depends(get_db)):
+    try:
+        ctrl.confirm_twofa_disable(db, body.token)
+        return {"status": "disabled"}
+    except ValueError as e:
+        code = str(e)
+        if code == "invalid_or_expired_token":
+            raise HTTPException(status_code=400, detail="Token invalide ou expiré")
+        if code == "user_not_found":
+            raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+        raise
+
+
+@router.get("/2fa/disable/confirm")
+def twofa_disable_confirm_get(token: str, db: Session = Depends(get_db)):
+    try:
+        ctrl.confirm_twofa_disable(db, token)
+        return {"status": "disabled"}
+    except ValueError as e:
+        code = str(e)
+        if code == "invalid_or_expired_token":
+            raise HTTPException(status_code=400, detail="Token invalide ou expiré")
+        if code == "user_not_found":
+            raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+        raise

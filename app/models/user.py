@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import String, DateTime, ForeignKey
+from sqlalchemy import String, DateTime, ForeignKey, Text
 from ..utils.database import Base
 from ..utils.shortid import new_short_uuid
 
@@ -37,6 +37,18 @@ class User(Base):
     )
     spotify: Mapped[Optional["SpotifySecret"]] = relationship(
         back_populates="user", uselist=False, cascade="all, delete-orphan"
+    )
+    warnings: Mapped[list["UserWarning"]] = relationship(
+        "UserWarning",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        foreign_keys="UserWarning.user_id",
+    )
+    bans: Mapped[list["UserBan"]] = relationship(
+        "UserBan",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        foreign_keys="UserBan.user_id",
     )
 
 
@@ -91,6 +103,8 @@ class TwoFA(Base):
     )
     secret: Mapped[str] = mapped_column(String(64))
     enabled_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    # Renseigné après validation du code TOTP
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     user: Mapped[User] = relationship("User", back_populates="twofa")
 
@@ -113,6 +127,18 @@ class SpotifySecret(Base):
 
 class PasswordReset(Base):
     __tablename__ = "api_password_resets"
+
+    token: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("api_users.id"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class TwoFADisable(Base):
+    __tablename__ = "api_twofa_disable"
 
     token: Mapped[str] = mapped_column(String(64), primary_key=True)
     user_id: Mapped[str] = mapped_column(
@@ -151,3 +177,47 @@ class LoginChallenge(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     expires_at: Mapped[datetime] = mapped_column(DateTime)
     used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class UserWarning(Base):
+    __tablename__ = "api_user_warnings"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=new_short_uuid
+    )
+    user_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("api_users.id"), index=True
+    )
+    moderator_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("api_users.id"), index=True
+    )
+    reason: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    user: Mapped[User] = relationship(
+        "User", foreign_keys=[user_id], back_populates="warnings"
+    )
+    moderator: Mapped[User] = relationship("User", foreign_keys=[moderator_id])
+
+
+class UserBan(Base):
+    __tablename__ = "api_user_bans"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=new_short_uuid
+    )
+    user_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("api_users.id"), index=True
+    )
+    moderator_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("api_users.id"), index=True
+    )
+    reason: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    user: Mapped[User] = relationship(
+        "User", foreign_keys=[user_id], back_populates="bans"
+    )
+    moderator: Mapped[User] = relationship("User", foreign_keys=[moderator_id])

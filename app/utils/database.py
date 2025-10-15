@@ -97,6 +97,56 @@ def create_all(BaseCls: type[DeclarativeBase] | None = None):
                 conn.commit()
             except Exception:
                 pass
+            # Ajouter la colonne verified_at sur api_twofa si manquante
+            try:
+                conn.execute(
+                    text(
+                        """
+                    ALTER TABLE api_twofa
+                    ADD COLUMN IF NOT EXISTS verified_at DATETIME NULL
+                    """
+                    )
+                )
+                conn.commit()
+            except Exception:
+                pass
+            # Créer tables de modération si manquantes (warnings, bans)
+            try:
+                conn.execute(
+                    text(
+                        """
+                    CREATE TABLE IF NOT EXISTS api_user_warnings (
+                        id VARCHAR(36) PRIMARY KEY,
+                        user_id VARCHAR(32) NOT NULL,
+                        moderator_id VARCHAR(32) NOT NULL,
+                        reason TEXT NOT NULL,
+                        created_at DATETIME NOT NULL,
+                        INDEX (user_id),
+                        INDEX (moderator_id)
+                    )
+                    """
+                    )
+                )
+                conn.execute(
+                    text(
+                        """
+                    CREATE TABLE IF NOT EXISTS api_user_bans (
+                        id VARCHAR(36) PRIMARY KEY,
+                        user_id VARCHAR(32) NOT NULL,
+                        moderator_id VARCHAR(32) NOT NULL,
+                        reason TEXT NOT NULL,
+                        created_at DATETIME NOT NULL,
+                        until DATETIME NULL,
+                        revoked_at DATETIME NULL,
+                        INDEX (user_id),
+                        INDEX (moderator_id)
+                    )
+                    """
+                    )
+                )
+                conn.commit()
+            except Exception:
+                pass
     except Exception:
         # Compat MySQL versions without IF NOT EXISTS on ADD COLUMN
         try:
@@ -163,6 +213,65 @@ def create_all(BaseCls: type[DeclarativeBase] | None = None):
                     unique_indexes = [row[0] for row in res]
                     for idx in unique_indexes:
                         conn.execute(text(f"ALTER TABLE api_users DROP INDEX {idx}"))
+                    conn.commit()
+                except Exception:
+                    pass
+                # Ajouter verified_at (fallback sans IF NOT EXISTS)
+                try:
+                    res = conn.execute(
+                        text(
+                            """
+                        SELECT COUNT(*) FROM information_schema.COLUMNS
+                        WHERE TABLE_SCHEMA = DATABASE()
+                          AND TABLE_NAME = 'api_twofa'
+                          AND COLUMN_NAME = 'verified_at'
+                        """
+                        )
+                    )
+                    cnt = res.scalar() if hasattr(res, "scalar") else list(res)[0][0]
+                    if cnt == 0:
+                        conn.execute(
+                            text(
+                                "ALTER TABLE api_twofa ADD COLUMN verified_at DATETIME NULL"
+                            )
+                        )
+                        conn.commit()
+                except Exception:
+                    pass
+                # Créer tables warnings/bans (fallback)
+                try:
+                    conn.execute(
+                        text(
+                            """
+                        CREATE TABLE IF NOT EXISTS api_user_warnings (
+                            id VARCHAR(36) PRIMARY KEY,
+                            user_id VARCHAR(32) NOT NULL,
+                            moderator_id VARCHAR(32) NOT NULL,
+                            reason TEXT NOT NULL,
+                            created_at DATETIME NOT NULL,
+                            INDEX (user_id),
+                            INDEX (moderator_id)
+                        )
+                        """
+                        )
+                    )
+                    conn.execute(
+                        text(
+                            """
+                        CREATE TABLE IF NOT EXISTS api_user_bans (
+                            id VARCHAR(36) PRIMARY KEY,
+                            user_id VARCHAR(32) NOT NULL,
+                            moderator_id VARCHAR(32) NOT NULL,
+                            reason TEXT NOT NULL,
+                            created_at DATETIME NOT NULL,
+                            until DATETIME NULL,
+                            revoked_at DATETIME NULL,
+                            INDEX (user_id),
+                            INDEX (moderator_id)
+                        )
+                        """
+                        )
+                    )
                     conn.commit()
                 except Exception:
                     pass
