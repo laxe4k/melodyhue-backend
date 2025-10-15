@@ -144,6 +144,41 @@ def create_all(BaseCls: type[DeclarativeBase] | None = None):
                     """
                     )
                 )
+                # Assurer la présence des colonnes sur des tables existantes (MySQL 8+)
+                try:
+                    conn.execute(
+                        text(
+                            "ALTER TABLE api_user_warnings ADD COLUMN IF NOT EXISTS moderator_id VARCHAR(32) NULL"
+                        )
+                    )
+                    conn.execute(
+                        text(
+                            "ALTER TABLE api_user_warnings ADD COLUMN IF NOT EXISTS reason TEXT NULL"
+                        )
+                    )
+                    conn.execute(
+                        text(
+                            "ALTER TABLE api_user_warnings ADD COLUMN IF NOT EXISTS created_at DATETIME NULL"
+                        )
+                    )
+                    conn.execute(
+                        text(
+                            "ALTER TABLE api_user_bans ADD COLUMN IF NOT EXISTS moderator_id VARCHAR(32) NULL"
+                        )
+                    )
+                    conn.execute(
+                        text(
+                            "ALTER TABLE api_user_bans ADD COLUMN IF NOT EXISTS until DATETIME NULL"
+                        )
+                    )
+                    conn.execute(
+                        text(
+                            "ALTER TABLE api_user_bans ADD COLUMN IF NOT EXISTS revoked_at DATETIME NULL"
+                        )
+                    )
+                except Exception:
+                    # Ignorer si le moteur ne supporte pas IF NOT EXISTS, géré plus bas
+                    pass
                 conn.commit()
             except Exception:
                 pass
@@ -196,6 +231,37 @@ def create_all(BaseCls: type[DeclarativeBase] | None = None):
                     "api_overlays",
                     "style",
                     "ALTER TABLE api_overlays ADD COLUMN style VARCHAR(32) DEFAULT 'light'",
+                )
+                # Assurer colonnes de modération (fallback sans IF NOT EXISTS)
+                ensure_col(
+                    "api_user_warnings",
+                    "moderator_id",
+                    "ALTER TABLE api_user_warnings ADD COLUMN moderator_id VARCHAR(32) NULL",
+                )
+                ensure_col(
+                    "api_user_warnings",
+                    "reason",
+                    "ALTER TABLE api_user_warnings ADD COLUMN reason TEXT NULL",
+                )
+                ensure_col(
+                    "api_user_warnings",
+                    "created_at",
+                    "ALTER TABLE api_user_warnings ADD COLUMN created_at DATETIME NULL",
+                )
+                ensure_col(
+                    "api_user_bans",
+                    "moderator_id",
+                    "ALTER TABLE api_user_bans ADD COLUMN moderator_id VARCHAR(32) NULL",
+                )
+                ensure_col(
+                    "api_user_bans",
+                    "until",
+                    "ALTER TABLE api_user_bans ADD COLUMN until DATETIME NULL",
+                )
+                ensure_col(
+                    "api_user_bans",
+                    "revoked_at",
+                    "ALTER TABLE api_user_bans ADD COLUMN revoked_at DATETIME NULL",
                 )
                 # Supprimer unique sur username si présent (fallback)
                 try:

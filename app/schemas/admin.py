@@ -42,3 +42,47 @@ class BanUserIn(BaseModel):
     reason: str = Field(min_length=3, max_length=500)
     # None = permanent ban
     until: datetime | None = None
+
+
+class ModerationUserListItem(BaseModel):
+    id: str
+    username: str
+    email: str
+    role: str
+    created_at: datetime
+    last_login_at: datetime | None = None
+    is_banned: bool
+    ban_reason: str | None = None
+    ban_until: datetime | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class ModerationUserListOut(BaseModel):
+    items: list[ModerationUserListItem]
+    total: int
+    page: int
+    page_size: int
+
+
+class WarningItem(BaseModel):
+    id: str
+    user_id: str
+    user_username: str | None = None
+    user_email: str | None = None
+    moderator_id: str | None = None
+    moderator_username: str | None = None
+    moderator_email: str | None = None
+    reason: str | None = None
+    created_at: datetime | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class UserWarningsOut(BaseModel):
+    items: list[WarningItem]
+    total: int
+    page: int
+    page_size: int

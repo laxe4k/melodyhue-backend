@@ -1,7 +1,14 @@
 from datetime import datetime, timedelta
 from typing import Optional
 from sqlalchemy.orm import Session
-from ..models.user import User, UserSession, TwoFA, LoginChallenge, TwoFADisable
+from ..models.user import (
+    User,
+    UserSession,
+    TwoFA,
+    LoginChallenge,
+    TwoFADisable,
+    UserBan,
+)
 from ..utils.security import (
     hash_password,
     verify_password,
@@ -15,6 +22,21 @@ from ..utils.security import (
 
 
 class AuthController:
+    def _active_ban(self, db: Session, user_id: str) -> Optional[UserBan]:
+        """Retourne le ban actif le plus récent s'il existe, sinon None."""
+        now = datetime.utcnow()
+        ban = (
+            db.query(UserBan)
+            .filter(
+                UserBan.user_id == user_id,
+                UserBan.revoked_at.is_(None),
+                ((UserBan.until.is_(None)) | (UserBan.until > now)),
+            )
+            .order_by(UserBan.created_at.desc())
+            .first()
+        )
+        return ban
+
     def register(self, db: Session, username: str, email: str, password: str) -> User:
         # Unicité sur l'email uniquement; usernames peuvent être dupliqués
         if db.query(User).filter(User.email == email).first():
@@ -53,6 +75,9 @@ class AuthController:
         )
         if not q or not verify_password(password, q.password_hash):
             raise ValueError("invalid_credentials")
+        # Interdire si banni
+        if self._active_ban(db, q.id):
+            raise ValueError("user_banned")
         # 2FA enabled AND verified? issue login challenge ticket
         tfa = db.query(TwoFA).filter(TwoFA.user_id == q.id).first()
         if tfa and getattr(tfa, "verified_at", None):
@@ -83,6 +108,9 @@ class AuthController:
         tfa = db.query(TwoFA).filter(TwoFA.user_id == u.id).first()
         if not tfa or not totp_verify(tfa.secret, code):
             raise ValueError("totp_required_or_invalid")
+        # Interdire si banni
+        if self._active_ban(db, u.id):
+            raise ValueError("user_banned")
         ch.used_at = datetime.utcnow()
         u.last_login_at = datetime.utcnow()
         db.add(ch)
@@ -106,6 +134,9 @@ class AuthController:
         user = db.query(User).filter(User.id == sess.user_id).first()
         if not user:
             raise ValueError("user_not_found")
+        # Interdire si banni
+        if self._active_ban(db, user.id):
+            raise ValueError("user_banned")
         # rotate refresh token
         db.delete(sess)
         db.commit()

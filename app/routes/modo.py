@@ -1,29 +1,51 @@
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, and_
 from ..utils.database import get_db
 from ..utils.auth_dep import require_moderator_or_admin
-from ..models.user import User, UserWarning, UserBan, Overlay
-from ..schemas.admin import UserListOut, UserListItem, WarnUserIn, BanUserIn
+from ..models.user import User, UserWarning, UserBan, UserSession, Overlay
+from ..schemas.admin import (
+    UserListItem,  # conservé pour compat éventuelle
+    WarnUserIn,
+    BanUserIn,
+    ModerationUserListOut,
+    ModerationUserListItem,
+)
 from ..schemas.overlay import OverlayUpdateIn, OverlayOut, OverlayModerationOut
+from ..services.realtime import get_manager
 
 router = APIRouter()
 
 
 # Users moderation
-@router.get("/users", response_model=UserListOut)
+@router.get("/users", response_model=ModerationUserListOut)
 def list_users(
     _: User = Depends(require_moderator_or_admin),
     db: Session = Depends(get_db),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     search: str | None = None,
+    banned: bool | None = None,
 ):
     q = db.query(User)
     if search:
         like = f"%{search}%"
         q = q.filter(or_(User.username.like(like), User.email.like(like)))
+    # Filtre pour n'afficher que les utilisateurs bannis si demandé
+    if banned is True:
+        from sqlalchemy.orm import aliased
+
+        UB = aliased(UserBan)
+        now = datetime.utcnow()
+        q = q.join(
+            UB,
+            and_(
+                UB.user_id == User.id,
+                UB.revoked_at.is_(None),
+                or_(UB.until.is_(None), UB.until > now),
+            ),
+        ).distinct(User.id)
     total = q.count()
     items = (
         q.order_by(User.created_at.desc())
@@ -31,15 +53,46 @@ def list_users(
         .limit(page_size)
         .all()
     )
-    return UserListOut(
-        items=[UserListItem.model_validate(i) for i in items],
+    # Récupérer les bans actifs pour les utilisateurs listés
+    ids = [u.id for u in items]
+    active_bans: dict[str, UserBan] = {}
+    if ids:
+        now = datetime.utcnow()
+        bans = (
+            db.query(UserBan)
+            .filter(
+                UserBan.user_id.in_(ids),
+                UserBan.revoked_at.is_(None),
+                or_(UserBan.until.is_(None), UserBan.until > now),
+            )
+            .order_by(UserBan.created_at.desc())
+            .all()
+        )
+        for b in bans:
+            if b.user_id not in active_bans:
+                active_bans[b.user_id] = b
+    return ModerationUserListOut(
+        items=[
+            ModerationUserListItem(
+                id=u.id,
+                username=u.username,
+                email=u.email,
+                role=u.role,
+                created_at=u.created_at,
+                last_login_at=u.last_login_at,
+                is_banned=(u.id in active_bans),
+                ban_reason=(active_bans[u.id].reason if u.id in active_bans else None),
+                ban_until=(active_bans[u.id].until if u.id in active_bans else None),
+            )
+            for u in items
+        ],
         total=total,
         page=page,
         page_size=page_size,
     )
 
 
-@router.get("/users/{user_id}", response_model=UserListItem)
+@router.get("/users/{user_id}", response_model=ModerationUserListItem)
 def view_user(
     user_id: str,
     _: User = Depends(require_moderator_or_admin),
@@ -48,7 +101,29 @@ def view_user(
     u = db.query(User).filter(User.id == user_id).first()
     if not u:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable")
-    return UserListItem.model_validate(u)
+    # Chercher ban actif
+    now = datetime.utcnow()
+    b = (
+        db.query(UserBan)
+        .filter(
+            UserBan.user_id == user_id,
+            UserBan.revoked_at.is_(None),
+            or_(UserBan.until.is_(None), UserBan.until > now),
+        )
+        .order_by(UserBan.created_at.desc())
+        .first()
+    )
+    return ModerationUserListItem(
+        id=u.id,
+        username=u.username,
+        email=u.email,
+        role=u.role,
+        created_at=u.created_at,
+        last_login_at=u.last_login_at,
+        is_banned=bool(b),
+        ban_reason=(b.reason if b else None),
+        ban_until=(b.until if b else None),
+    )
 
 
 @router.patch("/users/{user_id}")
@@ -99,6 +174,7 @@ def warn_user(
 def ban_user(
     user_id: str,
     body: BanUserIn,
+    bg: BackgroundTasks,
     moderator: User = Depends(require_moderator_or_admin),
     db: Session = Depends(get_db),
 ):
@@ -121,8 +197,21 @@ def ban_user(
         user_id=u.id, moderator_id=moderator.id, reason=body.reason, until=body.until
     )
     db.add(ban)
+    # Révoquer toutes les sessions (refresh tokens) de l'utilisateur pour forcer la déconnexion
+    revoked = db.query(UserSession).filter(UserSession.user_id == u.id).delete()
     db.commit()
-    return {"status": "ok", "ban_id": ban.id}
+    # Notifier en temps réel (si connecté via /ws): force logout immédiat
+    try:
+        manager = get_manager()
+        # 1) Envoyer un message explicite au client pour déclencher la déconnexion UI
+        bg.add_task(
+            manager.send_to_user, u.id, {"type": "force_logout", "reason": "banned"}
+        )
+        # 2) Fermer toutes les connexions WS pour couper net (le front gère le code 4401)
+        bg.add_task(manager.close_user, u.id, 4401, "banned")
+    except Exception:
+        pass
+    return {"status": "ok", "ban_id": ban.id, "revoked_sessions": int(revoked)}
 
 
 @router.post("/users/{user_id}/ban/revoke")
@@ -142,7 +231,7 @@ def revoke_ban(
     ban.revoked_at = datetime.utcnow()
     db.add(ban)
     db.commit()
-    return {"status": "ok"}
+    return {"status": "ok", "revoked_at": ban.revoked_at}
 
 
 # Overlays moderation (view/edit/delete any overlay)

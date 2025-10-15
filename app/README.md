@@ -3,8 +3,8 @@
 Nouvelle API FastAPI (MVC sans vues) située dans `fastapi_app/`.
 
 - Endpoints publics:
-  - `GET /infos` — infos piste Spotify actuelle
-  - `GET /color` — couleur dominante actuelle
+  - `GET /infos` - infos piste Spotify actuelle
+  - `GET /color` - couleur dominante actuelle
 - Auth:
   - `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`
   - `POST /auth/2fa/setup`, `POST /auth/2fa/verify`

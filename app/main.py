@@ -3,7 +3,17 @@ import os
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routes import public, auth, users, overlays, settings, spotify, admin, modo
+from .routes import (
+    public,
+    auth,
+    users,
+    overlays,
+    settings,
+    spotify,
+    admin,
+    modo,
+    realtime,
+)
 from .services.state import get_state
 from .utils.database import create_all
 
@@ -11,7 +21,7 @@ from .utils.database import create_all
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(level=log_level, format="%(asctime)s - %(levelname)s - %(message)s")
 
-app = FastAPI(title="MelodyHue API", version=os.getenv("APP_VERSION", "4.0.1"))
+app = FastAPI(title="MelodyHue API", version=os.getenv("APP_VERSION", "4.1.0"))
 
 # CORS (configurable)
 if os.getenv("ENABLE_CORS", "false").lower() == "true":
@@ -53,6 +63,7 @@ app.include_router(
     admin.router, prefix="/admin", tags=["admin"]
 )  # admin dashboard & roles
 app.include_router(modo.router, prefix="/modo", tags=["moderation"])  # moderator tools
+app.include_router(realtime.router, tags=["realtime"])  # /ws
 
 
 @app.on_event("startup")

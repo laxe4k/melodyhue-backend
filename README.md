@@ -1,4 +1,4 @@
-# MelodyHue — Backend (FastAPI)
+# MelodyHue - Backend (FastAPI)
 
 [![GitHub Release](https://img.shields.io/github/v/release/laxe4k/melodyhue-backend)](https://github.com/laxe4k/melodyhue-backend/releases)
 [![GitHub Release Date](https://img.shields.io/github/release-date/laxe4k/melodyhue-backend)](https://github.com/laxe4k/melodyhue-backend/releases)
@@ -81,23 +81,23 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
   - POST `/auth/reset` → change le mot de passe (token valide 1h)
 
 - Overlays (privé)
-  - GET `/overlays/` — liste de vos overlays
-  - POST `/overlays/` — crée un overlay { name, template }
-  - GET `/overlays/{id}` — détail (propriétaire uniquement)
-  - PATCH `/overlays/{id}` — met à jour { name?, template? }
-  - POST `/overlays/{id}/duplicate` — duplique
-  - DELETE `/overlays/{id}` — supprime
+  - GET `/overlays/` - liste de vos overlays
+  - POST `/overlays/` - crée un overlay { name, template }
+  - GET `/overlays/{id}` - détail (propriétaire uniquement)
+  - PATCH `/overlays/{id}` - met à jour { name?, template? }
+  - POST `/overlays/{id}/duplicate` - duplique
+  - DELETE `/overlays/{id}` - supprime
 
 - Overlays (public)
-  - GET `/overlay/{id}` — lecture publique d’un overlay (sans auth)
+  - GET `/overlay/{id}` - lecture publique d’un overlay (sans auth)
 
 - Couleurs / Infos (public par utilisateur)
-  - GET `/infos/{user_id}` — couleur + infos piste; en pause, couleur = `default_overlay_color`
-  - GET `/color/{user_id}` — couleur seule; en pause, couleur = `default_overlay_color`
+  - GET `/infos/{user_id}` - couleur + infos piste; en pause, couleur = `default_overlay_color`
+  - GET `/color/{user_id}` - couleur seule; en pause, couleur = `default_overlay_color`
 
 - Paramètres utilisateur (privé)
-  - GET `/settings/me` — récupère vos préférences (incl. `default_overlay_color`)
-  - PATCH `/settings/me` — met à jour (incl. `default_overlay_color`)
+  - GET `/settings/me` - récupère vos préférences (incl. `default_overlay_color`)
+  - PATCH `/settings/me` - met à jour (incl. `default_overlay_color`)
 
 ---
 
@@ -143,4 +143,4 @@ Astuce: en dev, `EMAIL_DEBUG=true` renvoie aussi le token brut dans la réponse.
 
 ## 📄 Licence
 
-MIT — voir [LICENSE](LICENSE).
+MIT - voir [LICENSE](LICENSE).

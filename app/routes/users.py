@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..utils.database import get_db
 from ..utils.security import hash_password, verify_password, gravatar_url
-from ..utils.auth_dep import get_current_user_id
+from ..utils.auth_dep import get_current_user_id, get_current_user
 from ..models.user import (
     User,
     Overlay,
@@ -32,18 +32,21 @@ def _get_current_user(db: Session, uid: str) -> User:
 
 
 @router.get("/me", response_model=UserOut)
-def me(uid: str = Depends(get_current_user_id), db: Session = Depends(get_db)):
-    u = _get_current_user(db, uid)
+def me(
+    user: User = Depends(get_current_user),  # applique la vérification ban
+    db: Session = Depends(get_db),
+):
+    u = user
     out = UserOut.model_validate(u)
     out.avatar_url = gravatar_url(u.email)
     # Couleur par défaut des overlays: préférer UserSetting.default_overlay_color
-    settings_row = db.query(UserSetting).filter(UserSetting.user_id == uid).first()
+    settings_row = db.query(UserSetting).filter(UserSetting.user_id == u.id).first()
     color_default = (
         getattr(settings_row, "default_overlay_color", None) if settings_row else None
     ) or None
     # Renseigner le nouveau champ de sortie
     out.default_overlay_color = color_default
-    tfa = db.query(TwoFA).filter(TwoFA.user_id == uid).first()
+    tfa = db.query(TwoFA).filter(TwoFA.user_id == u.id).first()
     out.twofa_enabled = bool(tfa and getattr(tfa, "verified_at", None))
     return out
 

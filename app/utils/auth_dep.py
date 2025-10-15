@@ -3,7 +3,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 from .security import decode_token
 from .database import get_db
-from ..models.user import User
+from ..models.user import User, UserBan
+from datetime import datetime
 
 
 # Allow absence of Authorization header; we'll fallback to cookies
@@ -40,6 +41,20 @@ def get_current_user(
     u = db.query(User).filter(User.id == sub).first()
     if not u:
         raise HTTPException(status_code=401, detail="Invalid token")
+    # Bloquer si banni (ban actif: until NULL ou > now, et non révoqué)
+    now = datetime.utcnow()
+    active_ban = (
+        db.query(UserBan)
+        .filter(
+            UserBan.user_id == u.id,
+            UserBan.revoked_at.is_(None),
+            ((UserBan.until.is_(None)) | (UserBan.until > now)),
+        )
+        .order_by(UserBan.created_at.desc())
+        .first()
+    )
+    if active_ban:
+        raise HTTPException(status_code=403, detail="Banned")
     return u
 
 

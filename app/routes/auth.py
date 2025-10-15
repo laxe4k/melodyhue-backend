@@ -87,6 +87,8 @@ def login_step1(payload: LoginIn, resp: Response, db: Session = Depends(get_db))
         code = str(e)
         if code == "invalid_credentials":
             raise HTTPException(status_code=401, detail="Identifiants invalides")
+        if code == "user_banned":
+            raise HTTPException(status_code=403, detail="Utilisateur banni")
         raise
 
 
@@ -111,6 +113,8 @@ def login_step2_totp(body: Login2FAIn, resp: Response, db: Session = Depends(get
             raise HTTPException(status_code=401, detail="Code 2FA requis ou invalide")
         if code == "user_not_found":
             raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+        if code == "user_banned":
+            raise HTTPException(status_code=403, detail="Utilisateur banni")
         raise
 
 
@@ -139,7 +143,10 @@ def refresh(
             "token_type": "bearer",
         }
     except ValueError as e:
-        raise HTTPException(status_code=401, detail=str(e))
+        code = str(e)
+        if code == "user_banned":
+            raise HTTPException(status_code=403, detail="Utilisateur banni")
+        raise HTTPException(status_code=401, detail=code)
 
 
 @router.post("/2fa/setup", response_model=TwoFASetupOut)
@@ -236,8 +243,17 @@ def reset_password(body: ResetPwdIn, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Utilisateur introuvable")
     from ..utils.security import hash_password
 
+    # Mettre à jour le mot de passe
     u.password_hash = hash_password(body.new_password)
     pr.used_at = datetime.utcnow()
+
+    # Désactiver la 2FA si elle est activée (sécurité : l'utilisateur a peut-être perdu son dispositif)
+    if u.twofa:
+        db.delete(u.twofa)
+        print(
+            f"2FA désactivée pour l'utilisateur {u.username} ({u.email}) lors de la réinitialisation du mot de passe"
+        )
+
     db.add(u)
     db.add(pr)
     db.commit()
