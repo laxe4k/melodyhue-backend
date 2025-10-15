@@ -42,7 +42,7 @@ class AuthSuccessOut(TokenPair):
 
 
 class RefreshIn(BaseModel):
-    refresh_token: str
+    refresh_token: str | None = None
 
 
 class ForgotPwdIn(BaseModel):
