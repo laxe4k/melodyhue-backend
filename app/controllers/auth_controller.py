@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Optional
 from sqlalchemy.orm import Session
-from ..models.user import User, UserSession, TwoFA, LoginChallenge
+from ..models.user import User, UserSession, TwoFA, LoginChallenge, TwoFADisable
 from ..utils.security import (
     hash_password,
     verify_password,
@@ -53,9 +53,9 @@ class AuthController:
         )
         if not q or not verify_password(password, q.password_hash):
             raise ValueError("invalid_credentials")
-        # 2FA enabled? issue login challenge ticket
+        # 2FA enabled AND verified? issue login challenge ticket
         tfa = db.query(TwoFA).filter(TwoFA.user_id == q.id).first()
-        if tfa:
+        if tfa and getattr(tfa, "verified_at", None):
             ticket = LoginChallenge(
                 user_id=q.id,
                 created_at=datetime.utcnow(),
@@ -120,10 +120,11 @@ class AuthController:
         # Upsert
         tfa = db.query(TwoFA).filter(TwoFA.user_id == user.id).first()
         if not tfa:
-            tfa = TwoFA(user_id=user.id, secret=secret)
+            tfa = TwoFA(user_id=user.id, secret=secret, verified_at=None)
             db.add(tfa)
         else:
             tfa.secret = secret
+            tfa.verified_at = None
         db.commit()
         return secret, otpauth
 
@@ -131,4 +132,65 @@ class AuthController:
         tfa = db.query(TwoFA).filter(TwoFA.user_id == user.id).first()
         if not tfa:
             return False
-        return totp_verify(tfa.secret, code)
+        ok = totp_verify(tfa.secret, code)
+        if ok and getattr(tfa, "verified_at", None) is None:
+            from datetime import datetime as _dt
+
+            tfa.verified_at = _dt.utcnow()
+            db.add(tfa)
+            db.commit()
+        return ok
+
+    def disable_2fa(self, db: Session, user: User, code: str) -> bool:
+        """
+        Désactive la 2FA pour l'utilisateur après vérification d'un code TOTP valide.
+        Lève des ValueError avec codes:
+        - "twofa_not_enabled" si aucune 2FA n'est configurée
+        - "invalid_code" si le code TOTP fourni est invalide
+        """
+        tfa = db.query(TwoFA).filter(TwoFA.user_id == user.id).first()
+        if not tfa:
+            raise ValueError("twofa_not_enabled")
+        if not totp_verify(tfa.secret, code):
+            raise ValueError("invalid_code")
+        db.delete(tfa)
+        db.commit()
+        return True
+
+    def request_twofa_disable(self, db: Session, user: User) -> str:
+        """Crée un token de désactivation 2FA (valide 1h) et le retourne (brut).
+        L'appelant peut l'envoyer par email.
+        """
+        from secrets import token_urlsafe
+        import hashlib
+
+        raw = token_urlsafe(32)
+        token_hash = hashlib.sha256(raw.encode("utf-8")).hexdigest()
+        ent = TwoFADisable(
+            token=token_hash,
+            user_id=user.id,
+            created_at=datetime.utcnow(),
+            expires_at=datetime.utcnow() + timedelta(hours=1),
+        )
+        db.add(ent)
+        db.commit()
+        return raw
+
+    def confirm_twofa_disable(self, db: Session, raw_token: str) -> bool:
+        import hashlib
+
+        token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+        ent = db.query(TwoFADisable).filter(TwoFADisable.token == token_hash).first()
+        if not ent or ent.used_at is not None or ent.expires_at < datetime.utcnow():
+            raise ValueError("invalid_or_expired_token")
+        user = db.query(User).filter(User.id == ent.user_id).first()
+        if not user:
+            raise ValueError("user_not_found")
+        # Remove 2FA if exists
+        tfa = db.query(TwoFA).filter(TwoFA.user_id == user.id).first()
+        if tfa:
+            db.delete(tfa)
+        ent.used_at = datetime.utcnow()
+        db.add(ent)
+        db.commit()
+        return True

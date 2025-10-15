@@ -12,6 +12,8 @@ class UserOut(BaseModel):
     avatar_url: str | None = None
     # Couleur par défaut des overlays
     default_overlay_color: str | None = None
+    # Indique si 2FA est activée
+    twofa_enabled: bool = False
 
     class Config:
         from_attributes = True

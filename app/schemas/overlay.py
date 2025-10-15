@@ -23,3 +23,16 @@ class OverlayOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class OverlayModerationOut(BaseModel):
+    id: str
+    owner_id: str
+    owner_username: str | None = None
+    name: str
+    template: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True

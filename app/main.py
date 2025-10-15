@@ -3,7 +3,7 @@ import os
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routes import public, auth, users, overlays, settings, spotify
+from .routes import public, auth, users, overlays, settings, spotify, admin, modo
 from .services.state import get_state
 from .utils.database import create_all
 
@@ -49,6 +49,10 @@ app.include_router(
     settings.router, prefix="/settings", tags=["settings"]
 )  # user settings
 app.include_router(spotify.router, prefix="/spotify", tags=["spotify"])
+app.include_router(
+    admin.router, prefix="/admin", tags=["admin"]
+)  # admin dashboard & roles
+app.include_router(modo.router, prefix="/modo", tags=["moderation"])  # moderator tools
 
 
 @app.on_event("startup")
