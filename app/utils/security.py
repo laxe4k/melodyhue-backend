@@ -29,7 +29,12 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 def create_access_token(sub: str, extra: Optional[dict] = None) -> str:
     now = int(time.time())
-    payload = {"sub": sub, "iat": now, "exp": now + ACCESS_TOKEN_EXPIRE_MIN * 60, "type": "access"}
+    payload = {
+        "sub": sub,
+        "iat": now,
+        "exp": now + ACCESS_TOKEN_EXPIRE_MIN * 60,
+        "type": "access",
+    }
     if extra:
         payload.update(extra)
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALG)
@@ -37,7 +42,12 @@ def create_access_token(sub: str, extra: Optional[dict] = None) -> str:
 
 def create_refresh_token(sub: str, extra: Optional[dict] = None) -> str:
     now = int(time.time())
-    payload = {"sub": sub, "iat": now, "exp": now + REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600, "type": "refresh"}
+    payload = {
+        "sub": sub,
+        "iat": now,
+        "exp": now + REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600,
+        "type": "refresh",
+    }
     if extra:
         payload.update(extra)
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALG)
