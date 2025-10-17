@@ -10,6 +10,7 @@ import base64
 import logging
 from typing import Callable, Optional
 import requests
+from urllib.parse import urlencode
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -353,7 +354,8 @@ class SpotifyClient:
                     self.spotify_access_token, self.spotify_refresh_token, expires_in
                 )
                 self.spotify_enabled = True
-                logging.info("🎉 Tokens OAuth sauvegardés!")
+                # Baisser le niveau de log pour éviter le bruit en production
+                logging.debug("Tokens OAuth Spotify sauvegardés.")
                 return True
             else:
                 return False
@@ -370,7 +372,7 @@ class SpotifyClient:
             "scope": "user-read-currently-playing user-read-playback-state",
             "show_dialog": os.getenv("SPOTIFY_SHOW_DIALOG", "false").lower(),
         }
-        return f"https://accounts.spotify.com/authorize?{requests.compat.urlencode(params)}"
+        return f"https://accounts.spotify.com/authorize?{urlencode(params)}"
 
     def handle_callback(self, code: str) -> bool:
         if not code:

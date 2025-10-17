@@ -236,7 +236,15 @@ def forgot_password(body: ForgotPwdIn, db: Session = Depends(get_db)):
 def reset_password(body: ResetPwdIn, db: Session = Depends(get_db)):
     token_hash = hashlib.sha256(body.token.encode("utf-8")).hexdigest()
     pr = db.query(PasswordReset).filter(PasswordReset.token == token_hash).first()
-    if not pr or pr.used_at is not None or pr.expires_at < datetime.utcnow():
+    if not pr:
+        raise HTTPException(status_code=400, detail="Token invalide ou expiré")
+    # Si expiré ou déjà utilisé: supprimer le token et signaler l'erreur
+    if pr.used_at is not None or pr.expires_at < datetime.utcnow():
+        try:
+            db.delete(pr)
+            db.commit()
+        except Exception:
+            db.rollback()
         raise HTTPException(status_code=400, detail="Token invalide ou expiré")
     u = db.query(User).filter(User.id == pr.user_id).first()
     if not u:
@@ -245,7 +253,6 @@ def reset_password(body: ResetPwdIn, db: Session = Depends(get_db)):
 
     # Mettre à jour le mot de passe
     u.password_hash = hash_password(body.new_password)
-    pr.used_at = datetime.utcnow()
 
     # Désactiver la 2FA si elle est activée (sécurité : l'utilisateur a peut-être perdu son dispositif)
     if u.twofa:
@@ -254,8 +261,9 @@ def reset_password(body: ResetPwdIn, db: Session = Depends(get_db)):
             f"2FA désactivée pour l'utilisateur {u.username} ({u.email}) lors de la réinitialisation du mot de passe"
         )
 
+    # Consommer définitivement le token: suppression de la ligne
     db.add(u)
-    db.add(pr)
+    db.delete(pr)
     db.commit()
     return {"status": "ok"}
 
@@ -317,6 +325,12 @@ def twofa_disable_confirm_get(token: str, db: Session = Depends(get_db)):
 
 
 @router.post("/logout")
-def logout(resp: Response):
+def logout(request: Request, resp: Response, db: Session = Depends(get_db)):
+    # Best-effort: supprimer la session liée au refresh token (même expiré)
+    rt = request.cookies.get("mh_refresh_token")
+    try:
+        ctrl.logout(db, rt)
+    except Exception:
+        pass
     clear_auth_cookies(resp)
     return {"status": "ok"}

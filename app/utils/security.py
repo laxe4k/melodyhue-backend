@@ -57,6 +57,18 @@ def decode_token(token: str) -> dict:
     return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALG])
 
 
+def decode_token_noexp(token: str) -> dict:
+    """Decode JWT without enforcing expiration (signature still verified).
+    Useful for housekeeping (e.g., deleting expired refresh sessions).
+    """
+    return jwt.decode(
+        token,
+        JWT_SECRET,
+        algorithms=[JWT_ALG],
+        options={"verify_exp": False},
+    )
+
+
 def is_refresh(token_payload: dict) -> bool:
     return token_payload.get("type") == "refresh"
 

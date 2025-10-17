@@ -1,7 +1,7 @@
 from typing import Optional, Dict
 from sqlalchemy.orm import Session
 from app.services.spotify_color_extractor_service import SpotifyColorExtractor
-from app.models.user import SpotifySecret, User
+from app.models.user import SpotifySecret, SpotifyToken, User
 import app.utils.encryption as enc
 
 
@@ -48,6 +48,9 @@ class AppState:
             secret = (
                 db.query(SpotifySecret).filter(SpotifySecret.user_id == user_id).first()
             )
+            token = (
+                db.query(SpotifyToken).filter(SpotifyToken.user_id == user_id).first()
+            )
             if secret:
                 cid = enc.decrypt_str(secret.client_id) if secret.client_id else None
                 csec = (
@@ -56,8 +59,8 @@ class AppState:
                     else None
                 )
                 rtok = (
-                    enc.decrypt_str(secret.refresh_token)
-                    if secret.refresh_token
+                    enc.decrypt_str(token.refresh_token)
+                    if (token and token.refresh_token)
                     else None
                 )
                 if cid and csec:
