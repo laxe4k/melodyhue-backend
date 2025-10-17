@@ -9,9 +9,13 @@ from ..models.user import (
     UserSession,
     TwoFA,
     SpotifySecret,
+    SpotifyToken,
     PasswordReset,
     UserSetting,
     LoginChallenge,
+    TwoFADisable,
+    UserBan,
+    UserWarning,
 )
 from ..schemas.user import (
     UserOut,
@@ -141,6 +145,9 @@ def delete_me_rest(
     db.query(SpotifySecret).filter(SpotifySecret.user_id == uid).delete(
         synchronize_session=False
     )
+    db.query(SpotifyToken).filter(SpotifyToken.user_id == uid).delete(
+        synchronize_session=False
+    )
     db.query(PasswordReset).filter(PasswordReset.user_id == uid).delete(
         synchronize_session=False
     )
@@ -150,6 +157,16 @@ def delete_me_rest(
     db.query(LoginChallenge).filter(LoginChallenge.user_id == uid).delete(
         synchronize_session=False
     )
+    db.query(TwoFADisable).filter(TwoFADisable.user_id == uid).delete(
+        synchronize_session=False
+    )
+    db.query(UserWarning).filter(UserWarning.user_id == uid).delete(
+        synchronize_session=False
+    )
+    db.query(UserWarning).filter(UserWarning.moderator_id == uid).delete(
+        synchronize_session=False
+    )
+    db.query(UserBan).filter(UserBan.user_id == uid).delete(synchronize_session=False)
     # Finally delete user
     db.delete(u)
     db.commit()
