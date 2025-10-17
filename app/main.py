@@ -15,6 +15,7 @@ from .routes import (
     realtime,
 )
 from .services.state import get_state
+from .services.cleanup import cleanup_scheduler
 from .utils.database import create_all
 
 
@@ -45,6 +46,8 @@ if os.getenv("ENABLE_CORS", "false").lower() == "true":
     )
 
 state = get_state()
+_cleanup_stop_event = None
+_cleanup_task = None
 
 # Include routers
 app.include_router(public.router, tags=["public"])  # /infos, /color
@@ -73,11 +76,25 @@ async def on_startup():
     except Exception:
         pass
     await state.start()
+    # Démarrer la tâche de nettoyage en arrière-plan
+    import asyncio
+
+    global _cleanup_stop_event, _cleanup_task
+    _cleanup_stop_event = asyncio.Event()
+    _cleanup_task = asyncio.create_task(cleanup_scheduler(_cleanup_stop_event))
 
 
 @app.on_event("shutdown")
 async def on_shutdown():
     await state.stop()
+    # Arrêter le scheduler
+    try:
+        if _cleanup_stop_event is not None:
+            _cleanup_stop_event.set()
+        if _cleanup_task is not None:
+            await _cleanup_task
+    except Exception:
+        pass
 
 
 # Simple health
