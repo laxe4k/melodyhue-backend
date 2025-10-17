@@ -77,6 +77,72 @@ def create_all(BaseCls: type[DeclarativeBase] | None = None):
                 )
             )
             conn.commit()
+            # Migration: copier l'ancienne colonne chiffrée vers refresh_token si présente
+            try:
+                res = conn.execute(
+                    text(
+                        """
+                    SELECT COUNT(*) FROM information_schema.COLUMNS
+                    WHERE TABLE_SCHEMA = DATABASE()
+                      AND TABLE_NAME = 'api_user_sessions'
+                      AND COLUMN_NAME = 'refresh_token_enc'
+                    """
+                    )
+                )
+                cnt = res.scalar() if hasattr(res, "scalar") else list(res)[0][0]
+                if cnt and cnt > 0:
+                    # Remplir refresh_token si NULL avec refresh_token_enc (déjà chiffré)
+                    conn.execute(
+                        text(
+                            """
+                        UPDATE api_user_sessions
+                        SET refresh_token = refresh_token_enc
+                        WHERE refresh_token IS NULL AND refresh_token_enc IS NOT NULL
+                        """
+                        )
+                    )
+                    conn.commit()
+            except Exception:
+                # Migration best-effort; on continue même si indisponible
+                pass
+            # Harmoniser la colonne refresh_token pour stockage chiffré (2048) et NOT NULL
+            try:
+                conn.execute(
+                    text(
+                        """
+                ALTER TABLE api_user_sessions
+                MODIFY COLUMN refresh_token VARCHAR(2048) NOT NULL
+                """
+                    )
+                )
+                conn.commit()
+            except Exception:
+                pass
+            # Supprimer colonnes obsolètes si présentes
+            for col in ("refresh_token_enc", "refresh_token_hash"):
+                try:
+                    conn.execute(
+                        text(f"ALTER TABLE api_user_sessions DROP COLUMN {col}")
+                    )
+                    conn.commit()
+                except Exception:
+                    pass
+            # Créer la table api_spotify_tokens si absente
+            try:
+                conn.execute(
+                    text(
+                        """
+                CREATE TABLE IF NOT EXISTS api_spotify_tokens (
+                  user_id VARCHAR(32) PRIMARY KEY,
+                  refresh_token VARCHAR(1024) NULL,
+                  updated_at DATETIME NOT NULL
+                )
+                """
+                    )
+                )
+                conn.commit()
+            except Exception:
+                pass
             # Supprimer une éventuelle contrainte unique sur api_users.username
             try:
                 # MySQL/MariaDB: trouver l'index unique et le supprimer
@@ -104,6 +170,19 @@ def create_all(BaseCls: type[DeclarativeBase] | None = None):
                         """
                     ALTER TABLE api_twofa
                     ADD COLUMN IF NOT EXISTS verified_at DATETIME NULL
+                    """
+                    )
+                )
+                conn.commit()
+            except Exception:
+                pass
+            # Agrandir la colonne secret (si trop courte) pour supporter les valeurs chiffrées
+            try:
+                conn.execute(
+                    text(
+                        """
+                    ALTER TABLE api_twofa
+                    MODIFY COLUMN secret VARCHAR(255)
                     """
                     )
                 )
@@ -263,6 +342,76 @@ def create_all(BaseCls: type[DeclarativeBase] | None = None):
                     "revoked_at",
                     "ALTER TABLE api_user_bans ADD COLUMN revoked_at DATETIME NULL",
                 )
+
+                # Assurer refresh_token_hash (fallback sans IF NOT EXISTS)
+                def ensure_col_generic(table: str, column: str, ddl: str):
+                    res = conn.execute(
+                        text(
+                            f"""
+                        SELECT COUNT(*) FROM information_schema.COLUMNS
+                        WHERE TABLE_SCHEMA = DATABASE()
+                          AND TABLE_NAME = '{table}'
+                          AND COLUMN_NAME = '{column}'
+                        """
+                        )
+                    )
+                    cnt = res.scalar() if hasattr(res, "scalar") else list(res)[0][0]
+                    if cnt == 0:
+                        conn.execute(text(ddl))
+                        conn.commit()
+
+                # Migration fallback: si refresh_token_enc existe, copier vers refresh_token
+                try:
+                    res = conn.execute(
+                        text(
+                            """
+                        SELECT COUNT(*) FROM information_schema.COLUMNS
+                        WHERE TABLE_SCHEMA = DATABASE()
+                          AND TABLE_NAME = 'api_user_sessions'
+                          AND COLUMN_NAME = 'refresh_token_enc'
+                        """
+                        )
+                    )
+                    cnt = res.scalar() if hasattr(res, "scalar") else list(res)[0][0]
+                    if cnt and cnt > 0:
+                        conn.execute(
+                            text(
+                                """
+                            UPDATE api_user_sessions
+                            SET refresh_token = refresh_token_enc
+                            WHERE refresh_token IS NULL AND refresh_token_enc IS NOT NULL
+                            """
+                            )
+                        )
+                        conn.commit()
+                except Exception:
+                    pass
+                # Assurer refresh_token NOT NULL (fallback)
+                try:
+                    conn.execute(
+                        text(
+                            "ALTER TABLE api_user_sessions MODIFY COLUMN refresh_token VARCHAR(2048) NOT NULL"
+                        )
+                    )
+                    conn.commit()
+                except Exception:
+                    pass
+                # Créer api_spotify_tokens si absente (fallback)
+                try:
+                    conn.execute(
+                        text(
+                            """
+                        CREATE TABLE IF NOT EXISTS api_spotify_tokens (
+                          user_id VARCHAR(32) PRIMARY KEY,
+                          refresh_token VARCHAR(1024) NULL,
+                          updated_at DATETIME NOT NULL
+                        )
+                        """
+                        )
+                    )
+                    conn.commit()
+                except Exception:
+                    pass
                 # Supprimer unique sur username si présent (fallback)
                 try:
                     res = conn.execute(
@@ -302,6 +451,14 @@ def create_all(BaseCls: type[DeclarativeBase] | None = None):
                             )
                         )
                         conn.commit()
+                except Exception:
+                    pass
+                # Agrandir la colonne secret à VARCHAR(255) (fallback)
+                try:
+                    conn.execute(
+                        text("ALTER TABLE api_twofa MODIFY COLUMN secret VARCHAR(255)")
+                    )
+                    conn.commit()
                 except Exception:
                     pass
                 # Créer tables warnings/bans (fallback)

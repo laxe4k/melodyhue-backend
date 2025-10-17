@@ -15,10 +15,13 @@ from ..utils.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
+    decode_token_noexp,
     is_refresh,
     totp_generate_secret,
     totp_verify,
 )
+import app.utils.encryption as enc
+from jose import JWTError
 
 
 class AuthController:
@@ -52,10 +55,10 @@ class AuthController:
             user.id, {"username": user.username, "role": getattr(user, "role", "user")}
         )
         refresh = create_refresh_token(user.id)
-        # Persist refresh token session
+        # Persist refresh token session (chiffré)
         sess = UserSession(
             user_id=user.id,
-            refresh_token=refresh,
+            refresh_token=enc.encrypt_str(refresh) or refresh,
             created_at=datetime.utcnow(),
             expires_at=datetime.utcnow() + timedelta(days=30),
         )
@@ -100,35 +103,87 @@ class AuthController:
         self, db: Session, ticket: str, code: str
     ) -> tuple[User, str, str]:
         ch = db.query(LoginChallenge).filter(LoginChallenge.id == ticket).first()
-        if not ch or ch.used_at is not None or ch.expires_at < datetime.utcnow():
+        if not ch:
+            raise ValueError("invalid_or_expired_ticket")
+        # Supprimer les tickets expirés ou déjà utilisés
+        now = datetime.utcnow()
+        if ch.used_at is not None or ch.expires_at < now:
+            try:
+                db.delete(ch)
+                db.commit()
+            except Exception:
+                db.rollback()
             raise ValueError("invalid_or_expired_ticket")
         u = db.query(User).filter(User.id == ch.user_id).first()
         if not u:
             raise ValueError("user_not_found")
         tfa = db.query(TwoFA).filter(TwoFA.user_id == u.id).first()
-        if not tfa or not totp_verify(tfa.secret, code):
+        # Déchiffrer le secret (fallback transparent si déjà en clair)
+        plain_secret = enc.decrypt_str(tfa.secret) if tfa else None
+        if not tfa or not totp_verify(plain_secret or tfa.secret, code):
             raise ValueError("totp_required_or_invalid")
         # Interdire si banni
         if self._active_ban(db, u.id):
             raise ValueError("user_banned")
-        ch.used_at = datetime.utcnow()
+        # Consommer définitivement le ticket de login: suppression
         u.last_login_at = datetime.utcnow()
-        db.add(ch)
         db.add(u)
-        db.commit()
+        try:
+            db.delete(ch)
+            db.commit()
+        except Exception:
+            db.rollback()
         access, refresh = self._issue_tokens(db, u)
         return u, access, refresh
 
     def refresh(self, db: Session, refresh_token: str) -> tuple[str, str]:
-        payload = decode_token(refresh_token)
+        try:
+            payload = decode_token(refresh_token)
+        except JWTError:
+            # Si expiré: tenter un décodage sans vérif d'exp pour retrouver/supprimer la session
+            try:
+                payload = decode_token_noexp(refresh_token)
+                user_id = payload.get("sub") if isinstance(payload, dict) else None
+                if user_id:
+                    sessions = (
+                        db.query(UserSession)
+                        .filter(UserSession.user_id == user_id)
+                        .all()
+                    )
+                    for s in sessions:
+                        try:
+                            plain = (
+                                enc.decrypt_str(s.refresh_token)
+                                if s.refresh_token
+                                else None
+                            )
+                            if plain == refresh_token:
+                                db.delete(s)
+                                db.commit()
+                                break
+                        except Exception:
+                            continue
+                # signale au client que le refresh a expiré
+                raise ValueError("token_expired")
+            except JWTError:
+                # Token illisible/altéré
+                raise ValueError("invalid_token")
         if not is_refresh(payload):
             raise ValueError("not_refresh_token")
-        # Validate session exists
-        sess = (
-            db.query(UserSession)
-            .filter(UserSession.refresh_token == refresh_token)
-            .first()
-        )
+        # Validate session exists: on cible l'utilisateur via le JWT, puis on compare par déchiffrement
+        user_id = payload.get("sub")
+        if not user_id:
+            raise ValueError("invalid_token_subject")
+        sessions = db.query(UserSession).filter(UserSession.user_id == user_id).all()
+        sess = None
+        for s in sessions:
+            try:
+                plain = enc.decrypt_str(s.refresh_token) if s.refresh_token else None
+                if plain == refresh_token:
+                    sess = s
+                    break
+            except Exception:
+                continue
         if not sess:
             raise ValueError("session_revoked")
         user = db.query(User).filter(User.id == sess.user_id).first()
@@ -143,6 +198,35 @@ class AuthController:
         access, refresh = self._issue_tokens(db, user)
         return access, refresh
 
+    def logout(self, db: Session, refresh_token: Optional[str]) -> None:
+        """Supprime la session associée au refresh token, même expiré, si possible.
+        Ne lève pas d'exception en cas d'échec: best-effort.
+        """
+        if not refresh_token:
+            return
+        try:
+            payload = decode_token_noexp(refresh_token)
+            user_id = payload.get("sub") if isinstance(payload, dict) else None
+            if not user_id:
+                return
+            sessions = (
+                db.query(UserSession).filter(UserSession.user_id == user_id).all()
+            )
+            for s in sessions:
+                try:
+                    plain = (
+                        enc.decrypt_str(s.refresh_token) if s.refresh_token else None
+                    )
+                    if plain == refresh_token:
+                        db.delete(s)
+                        db.commit()
+                        break
+                except Exception:
+                    continue
+        except Exception:
+            # ignorer silencieusement: on a tout de même vidé les cookies côté routeur
+            return
+
     def enable_2fa(self, db: Session, user: User) -> tuple[str, str]:
         secret = totp_generate_secret()
         otpauth = (
@@ -151,10 +235,15 @@ class AuthController:
         # Upsert
         tfa = db.query(TwoFA).filter(TwoFA.user_id == user.id).first()
         if not tfa:
-            tfa = TwoFA(user_id=user.id, secret=secret, verified_at=None)
+            # Stocker le secret chiffré au repos
+            tfa = TwoFA(
+                user_id=user.id,
+                secret=enc.encrypt_str(secret) or secret,
+                verified_at=None,
+            )
             db.add(tfa)
         else:
-            tfa.secret = secret
+            tfa.secret = enc.encrypt_str(secret) or secret
             tfa.verified_at = None
         db.commit()
         return secret, otpauth
@@ -163,7 +252,9 @@ class AuthController:
         tfa = db.query(TwoFA).filter(TwoFA.user_id == user.id).first()
         if not tfa:
             return False
-        ok = totp_verify(tfa.secret, code)
+        # Déchiffrer le secret (fallback transparent si déjà en clair)
+        plain_secret = enc.decrypt_str(tfa.secret) or tfa.secret
+        ok = totp_verify(plain_secret, code)
         if ok and getattr(tfa, "verified_at", None) is None:
             from datetime import datetime as _dt
 
@@ -182,7 +273,8 @@ class AuthController:
         tfa = db.query(TwoFA).filter(TwoFA.user_id == user.id).first()
         if not tfa:
             raise ValueError("twofa_not_enabled")
-        if not totp_verify(tfa.secret, code):
+        plain_secret = enc.decrypt_str(tfa.secret) or tfa.secret
+        if not totp_verify(plain_secret, code):
             raise ValueError("invalid_code")
         db.delete(tfa)
         db.commit()
@@ -212,7 +304,16 @@ class AuthController:
 
         token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
         ent = db.query(TwoFADisable).filter(TwoFADisable.token == token_hash).first()
-        if not ent or ent.used_at is not None or ent.expires_at < datetime.utcnow():
+        if not ent:
+            raise ValueError("invalid_or_expired_token")
+        # Nettoyage: si déjà utilisé ou expiré, supprimer l'entrée et signaler l'erreur
+        now = datetime.utcnow()
+        if ent.used_at is not None or ent.expires_at < now:
+            try:
+                db.delete(ent)
+                db.commit()
+            except Exception:
+                db.rollback()
             raise ValueError("invalid_or_expired_token")
         user = db.query(User).filter(User.id == ent.user_id).first()
         if not user:
@@ -221,7 +322,7 @@ class AuthController:
         tfa = db.query(TwoFA).filter(TwoFA.user_id == user.id).first()
         if tfa:
             db.delete(tfa)
-        ent.used_at = datetime.utcnow()
-        db.add(ent)
+        # Consommer définitivement le token de désactivation: suppression de la ligne
+        db.delete(ent)
         db.commit()
         return True

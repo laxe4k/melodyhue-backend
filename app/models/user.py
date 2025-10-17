@@ -88,7 +88,8 @@ class UserSession(Base):
     user_id: Mapped[str] = mapped_column(
         String(32), ForeignKey("api_users.id"), index=True
     )
-    refresh_token: Mapped[str] = mapped_column(String(512), unique=True)
+    # Stockage unique du refresh token (chiffré au repos)
+    refresh_token: Mapped[str] = mapped_column(String(2048), unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     expires_at: Mapped[datetime] = mapped_column(DateTime)
 
@@ -101,7 +102,7 @@ class TwoFA(Base):
     user_id: Mapped[str] = mapped_column(
         String(32), ForeignKey("api_users.id"), primary_key=True
     )
-    secret: Mapped[str] = mapped_column(String(64))
+    secret: Mapped[str] = mapped_column(String(255))
     enabled_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     # Renseigné après validation du code TOTP
     verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -117,12 +118,23 @@ class SpotifySecret(Base):
     )
     client_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     client_secret: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    refresh_token: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
     user: Mapped[User] = relationship("User", back_populates="spotify")
+
+
+class SpotifyToken(Base):
+    __tablename__ = "api_spotify_tokens"
+
+    user_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("api_users.id"), primary_key=True
+    )
+    refresh_token: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
 
 class PasswordReset(Base):
